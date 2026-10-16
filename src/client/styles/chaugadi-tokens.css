@@ -1,0 +1,123 @@
+/* Chaugadi design tokens. Dark is the default; light is opt-in via data-theme="light".
+   Deck colours: data-deck="2" switches diamonds and clubs to the two-colour set. */
+:root {
+  /* surfaces */
+  --bg: #0E1014;
+  --bg-deep: #0B0D10;
+  --surface-1: #171A20;
+  --surface-2: #20242C;
+  --surface-3: #262B34;
+  --line: #2C313B;
+  --felt-in: #1C2028;
+  --felt-out: #15181E;
+  --rim: #22262E;
+  --ghost: #1A1E26;
+
+  /* text */
+  --text: #EEF0F3;
+  --text-2: #C9CED6;
+  --text-dim: #9AA1AD;
+  --text-faint: #6B717D;
+
+  /* meaning: one accent per meaning, never decorative */
+  --amber: #F2B544;      /* your turn, pressure, primary action */
+  --on-amber: #1A1405;
+  --amber-ink: #F2B544;  /* amber used as text */
+  --blue: #7CC4F5;       /* done, winning, safe */
+  --on-blue: #06121B;
+  --blue-ring: #7CC4F5;
+  --coral: #FF8A7A;      /* failed, missed */
+  --on-coral: #1C0B08;
+
+  /* teams: identity only, never status. Team B always also gets a square / double-ring shape */
+  --team-a: #A897FF;
+  --team-b: #4CC9A0;
+
+  /* hukum and cards */
+  --hukum: #F5F5F2;
+  --card: #F5F5F2;
+  --card-line: transparent;
+  --back: #262B5C;
+  --back-line: rgba(233, 228, 255, .65);
+
+  /* suits on a card face */
+  --suit-s: #1B1D24;
+  --suit-h: #C8322F;
+  --suit-d: #2364D2;
+  --suit-c: #16804A;
+  /* suits on a dark surface (chips, tiles, glyphs) */
+  --suit-s-ui: #EEF0F3;
+  --suit-h-ui: #F08A8A;
+  --suit-d-ui: #7FA8F0;
+  --suit-c-ui: #6FCF97;
+
+  /* shape */
+  --r-card-sm: 5px;
+  --r-card: 8px;
+  --r-chip: 14px;
+  --r-btn: 14px;
+  --r-panel: 16px;
+  --r-sheet: 22px;
+
+  /* depth */
+  --shadow-trick: 0 6px 14px rgba(0, 0, 0, .45);
+  --shadow-hand: -3px 0 8px rgba(0, 0, 0, .35);
+  --shadow-sheet: 0 -10px 30px rgba(0, 0, 0, .35);
+
+  /* motion */
+  --ease-travel: cubic-bezier(.2, .8, .2, 1);
+  --dur-micro: 140ms;
+  --dur-state: 240ms;
+  --dur-play: 260ms;
+  --dur-settle: 80ms;
+  --dur-sweep: 300ms;
+  --dur-hold: 400ms;
+  --dur-ledger: 600ms;
+  --motion-scale: 1; /* Relaxed 1.25, Fast .7, Reduced: see below */
+}
+
+[data-theme="light"] {
+  --bg: #F2F1EC;
+  --bg-deep: #E6E4DD;
+  --surface-1: #FFFFFF;
+  --surface-2: #E9E8E2;
+  --surface-3: #DCDAD3;
+  --line: #D2D0C8;
+  --felt-in: #FAF9F5;
+  --felt-out: #ECEAE3;
+  --rim: #D4D1C8;
+  --ghost: #E4E2DB;
+  --text: #15171C;
+  --text-2: #3A3F48;
+  --text-dim: #5D636E;
+  --text-faint: #8A8F98;
+  --amber-ink: #8A5A00;
+  --blue-ring: #1D6CA6;
+  --team-a: #7C66F0;
+  --team-b: #12936B;
+  --hukum: #FFFFFF;
+  --card: #FFFFFF;
+  --card-line: #D2D0C8;
+  --suit-s-ui: #1B1D24;
+  --suit-h-ui: #C8322F;
+  --suit-d-ui: #2364D2;
+  --suit-c-ui: #16804A;
+  --shadow-trick: 0 6px 14px rgba(0, 0, 0, .16);
+  --shadow-hand: -3px 0 8px rgba(0, 0, 0, .12);
+}
+
+[data-deck="2"] {
+  --suit-d: #C8322F;
+  --suit-c: #1B1D24;
+  --suit-d-ui: var(--suit-h-ui);
+  --suit-c-ui: var(--suit-s-ui);
+}
+
+[data-motion="relaxed"] { --motion-scale: 1.25; }
+[data-motion="fast"] { --motion-scale: .7; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="normal"]):not([data-motion="fast"]):not([data-motion="relaxed"]) { --motion-scale: 0; }
+}
+[data-motion="reduced"] { --motion-scale: 0; }
+/* motion-scale 0 means: replace travel with a 120ms opacity crossfade, no loops, no shake, no confetti. */

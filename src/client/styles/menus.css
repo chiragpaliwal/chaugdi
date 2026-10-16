@@ -1,0 +1,142 @@
+/* Home, Settings, Lobby (01–03), transcribed from docs/boards. */
+
+.menu-scr { position: relative; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); color: var(--text); padding: 0 16px 16px; }
+
+/* segmented + switch (HANDOFF §4) */
+.seg { display: flex; padding: 3px; border-radius: 12px; background: var(--bg); gap: 2px; }
+.seg button { height: 34px; min-width: 44px; padding: 0 10px; border-radius: 9px; font-size: 13px; color: var(--text-dim); font-weight: 600; position: relative; }
+.seg button::before { content: ''; position: absolute; inset: -5px 0; } /* 44 px tall hit area */
+.seg.tall button { height: 36px; min-width: 48px; }
+.seg.full button { flex: 1; }
+.seg button.on { background: var(--text); color: var(--bg); }
+.switch { width: 52px; height: 32px; border-radius: 16px; background: var(--line); position: relative; flex: none; }
+.switch::before { content: ''; position: absolute; inset: -6px -2px; }
+.switch::after { content: ''; position: absolute; left: 3px; top: 3px; width: 26px; height: 26px; border-radius: 50%; background: var(--text-dim); transition: transform calc(160ms * var(--motion-scale)) var(--ease-travel); }
+.switch.on { background: var(--blue); }
+.switch.on::after { transform: translateX(20px); background: var(--bg); }
+[data-theme="light"] .switch.on { background: var(--blue-ring); }
+
+/* room code boxes over one real input */
+.code-field { display: flex; gap: 6px; flex: 1; position: relative; }
+.code-field input { position: absolute; inset: 0; opacity: 0; width: 100%; font-size: 16px; }
+.code-field span { flex: 1; height: 48px; border-radius: 10px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); display: grid; place-items: center; font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; }
+.code-field span.cur { box-shadow: inset 0 0 0 2px var(--amber); }
+.code-field span.ph { color: var(--sar-line); }
+.code-field.bad span { box-shadow: inset 0 0 0 1.5px var(--coral); }
+
+/* ------------------------------------------------------------------ home */
+.home-top { height: 56px; display: flex; align-items: center; gap: 10px; flex: none; }
+.me-chip { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 4px; border-radius: 18px; background: var(--surface-1); font-size: 13px; position: relative; }
+.me-chip::before { content: ''; position: absolute; inset: -4px 0; }
+.me-chip .av { width: 28px; height: 28px; border-radius: 50%; background: var(--amber); color: var(--on-amber); display: grid; place-items: center; font-weight: 600; font-size: 12px; }
+.me-chip b { font-weight: 700; }
+.home-top .icon-btn { background: var(--surface-1); margin-left: auto; }
+.hero { position: relative; height: 330px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.hero .dia { position: relative; width: 176px; height: 150px; }
+.hero .tb { position: absolute; left: 50%; top: 50%; width: 96px; height: 74px; transform: translate(-50%, -50%); border-radius: 999px; background: radial-gradient(ellipse at 50% 45%, var(--felt-in) 0%, var(--felt-out) 75%); box-shadow: inset 0 0 0 1px var(--felt-ring-1), inset 0 0 0 6px var(--felt-ring-2), inset 0 0 0 7px var(--rim); }
+.hero .s { position: absolute; width: 40px; height: 40px; transform: translate(-50%, -50%); display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); }
+.hero .s svg { width: 20px; height: 20px; }
+.hero .s.A { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--team-a); }
+.hero .s.B { border-radius: 12px; box-shadow: 0 0 0 3px var(--bg), 0 0 0 4.5px var(--team-b), 0 0 0 6px var(--bg), 0 0 0 7.5px var(--team-b); }
+.hero .s.you { background: var(--amber); color: var(--on-amber); }
+.wordmark { margin: 18px 0 0; font-size: 52px; font-weight: 800; letter-spacing: -.035em; line-height: .95; }
+.tagline { margin: 8px 0 0; font-size: 14px; color: var(--text-dim); text-align: center; line-height: 1.4; max-width: 300px; }
+.home-acts { display: flex; flex-direction: column; gap: 12px; margin-top: 22px; }
+.btn-primary { height: 58px; border-radius: 14px; background: var(--amber); color: var(--on-amber); font-size: 17px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.btn-primary .chip { display: flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 12px; background: rgba(26,20,5,.14); font-size: 12px; font-weight: 600; }
+.btn-secondary { height: 56px; border-radius: 14px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.btn-secondary svg { width: 20px; height: 20px; }
+.join-row { display: flex; gap: 8px; align-items: center; padding: 8px; border-radius: 16px; background: var(--surface-1); }
+.join-row .jb { height: 48px; padding: 0 18px; border-radius: 12px; background: var(--surface-3); color: var(--text-dim); font-weight: 600; font-size: 15px; }
+.join-row .jb.go { background: var(--amber); color: var(--on-amber); }
+.join-msg { font-size: 12px; color: var(--coral); margin: -4px 4px 0; }
+[data-theme="light"] .join-msg { color: #B3382A; }
+.btn-ghost { height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text-2); }
+.btn-ghost .m { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-faint); font-weight: 400; }
+.home-last { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--text-2); }
+.home-last b { color: var(--text); font-weight: 600; }
+.home-last .v { font-family: 'DM Mono', monospace; color: var(--text); }
+.home-last button { margin-left: auto; color: var(--amber-ink); font-weight: 600; position: relative; }
+.home-last button::before { content: ''; position: absolute; inset: -14px -10px; } /* 44 px hit area */
+.home-last.resume { box-shadow: inset 0 0 0 1.5px var(--amber); }
+
+/* -------------------------------------------------------------- settings */
+.menu-top { height: 56px; display: flex; align-items: center; gap: 6px; flex: none; }
+.menu-top h1 { margin: 0; font-size: 22px; font-weight: 800; }
+.menu-top .icon-btn { margin-left: -8px; }
+.set-k { margin: 14px 4px 6px; display: block; }
+.set-grp { border-radius: 16px; background: var(--surface-1); display: flex; flex-direction: column; }
+.set-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 12px 6px 14px; border-top: 1px solid var(--surface-2); }
+.set-row:first-child { border-top: 0; }
+.set-row .l { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; display: flex; flex-direction: column; gap: 2px; }
+.set-row .l small { font-size: 11px; font-weight: 400; color: var(--text-dim); }
+.set-row.stack { flex-direction: column; align-items: stretch; gap: 8px; padding-top: 12px; }
+.set-pv { display: flex; align-items: center; gap: 14px; padding: 10px 14px 12px; border-top: 1px solid var(--surface-2); }
+.set-pv > svg { width: 22px; height: 22px; }
+.pv-card { background: var(--card); box-shadow: inset 0 0 0 1px var(--card-line); border-radius: 7px; display: flex; flex-direction: column; justify-content: space-between; padding: 4px 5px; flex: none; transition: width calc(160ms * var(--motion-scale)), height calc(160ms * var(--motion-scale)); }
+.pv-card .r { font-family: 'DM Mono', monospace; font-weight: 500; line-height: 1; }
+.pv-card svg { align-self: flex-end; }
+.set-note { font-size: 11px; color: var(--text-dim); padding: 0 14px 10px; margin: -4px 0 11px; } /* the board keeps the <p> default bottom margin */
+.name-inp { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 10px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); flex: 1; }
+.name-inp:focus-within { box-shadow: inset 0 0 0 2px var(--amber); }
+.name-inp input { flex: 1; min-width: 0; font-size: 15px; outline: none; background: none; border: 0; color: inherit; font-family: inherit; padding: 0; }
+.name-inp .c { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-faint); }
+.name-inp .lbl { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+/* ----------------------------------------------------------------- lobby */
+.lobby-top { height: 52px; display: flex; align-items: center; gap: 8px; flex: none; }
+.lobby-top h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.lobby-top .dim { font-size: 14px; }
+.lobby-top .icon-btn { margin-left: -8px; }
+.room-code { border-radius: 18px; background: var(--surface-1); padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 2px; flex: none; }
+.room-code .c { font-family: 'DM Mono', monospace; font-size: 48px; font-weight: 500; letter-spacing: .14em; line-height: 1.1; }
+.room-code .u { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); }
+.room-code .row { display: flex; gap: 8px; margin-top: 10px; }
+.room-code .share { flex: 1; height: 48px; border-radius: 12px; background: var(--amber); color: var(--on-amber); font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.room-code .share svg { width: 18px; height: 18px; }
+.room-code .icon-btn { background: var(--surface-2); }
+.lobby-dia { position: relative; height: 300px; flex: none; margin-top: 6px; }
+.lobby-dia .tbl { position: absolute; left: 50%; top: 50%; width: 150px; height: 110px; transform: translate(-50%, -50%); border-radius: 999px; background: radial-gradient(ellipse at 50% 45%, var(--felt-in) 0%, var(--felt-out) 75%); box-shadow: inset 0 0 0 1px var(--felt-ring-1), inset 0 0 0 8px var(--felt-ring-2), inset 0 0 0 9px var(--rim); }
+.lobby-dia .ax { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; text-align: center; line-height: 1.5; }
+.lobby-dia .ax .A { color: var(--team-a); display: block; } .lobby-dia .ax .B { color: var(--team-b); display: block; }
+.lslot { position: absolute; width: 124px; margin-left: -62px; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.lslot .av { width: 48px; height: 48px; border-radius: 50%; background: var(--surface-3); display: grid; place-items: center; font-size: 17px; font-weight: 600; color: var(--avatar-ink); position: relative; }
+.lslot .av.A { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--team-a); }
+.lslot .av.B { box-shadow: 0 0 0 3px var(--bg), 0 0 0 4.5px var(--team-b), 0 0 0 6px var(--bg), 0 0 0 7.5px var(--team-b); }
+.lslot .av.me { background: var(--amber); color: var(--on-amber); }
+.lslot .av.empty { background: none; box-shadow: inset 0 0 0 1.5px var(--sar-line); color: var(--text-faint); }
+.lslot .av svg { width: 20px; height: 20px; }
+.lslot .ok { position: absolute; right: -6px; bottom: -4px; width: 18px; height: 18px; border-radius: 50%; background: var(--blue); color: var(--on-blue); display: grid; place-items: center; box-shadow: 0 0 0 2px var(--bg); }
+.lslot .ok svg { width: 11px; height: 11px; }
+.lslot .nm { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.lslot .host { font-size: 9px; font-weight: 700; letter-spacing: .06em; color: var(--text-dim); }
+.lslot .rs { font-size: 11px; color: var(--text-dim); margin-top: -4px; }
+.lslot .rs.on { color: var(--blue-ring); }
+.lslot .fill { white-space: nowrap; height: 36px; padding: 0 12px; border-radius: 18px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--sar-line); font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; color: var(--text-2); position: relative; }
+.lslot .fill::after { content: ''; position: absolute; inset: -4px 0; }
+.lslot .fill svg { width: 16px; height: 16px; }
+.lobby-grp { border-radius: 16px; background: var(--surface-1); flex: none; }
+.lobby-grp .gr { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 10px 6px 14px; border-top: 1px solid var(--surface-2); }
+.lobby-grp .gr:first-child { border-top: 0; }
+.lobby-grp .gr .l { flex: 1; font-size: 14px; font-weight: 600; display: flex; flex-direction: column; gap: 2px; }
+.lobby-grp .gr .l small { font-size: 11px; font-weight: 400; color: var(--text-dim); }
+.lobby-grp .gr .val { font-size: 13px; color: var(--text-2); font-weight: 600; padding-right: 4px; }
+.lobby-cta { margin-top: auto; height: 56px; border-radius: 14px; font-size: 17px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; position: relative; overflow: hidden; flex: none; }
+.lobby-cta.go { background: var(--amber); color: var(--on-amber); }
+.lobby-cta.wait { background: var(--ghost); color: var(--text-dim); }
+.lobby-cta .ring { width: 26px; height: 26px; border-radius: 50%; -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); }
+.lobby-cancel { height: 44px; font-size: 14px; color: var(--text-2); font-weight: 600; margin-top: 4px; flex: none; }
+
+/* pause vote (13, not in the designs: built from the toast) */
+.vote { margin: 8px 12px 0; padding: 10px 12px 12px; border-radius: 12px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--sar-line); font-size: 13px; color: var(--text-2); display: flex; flex-direction: column; gap: 10px; flex: none; }
+.vote .hd { display: flex; align-items: center; gap: 10px; }
+.vote .hd b { color: var(--text); font-weight: 600; }
+.vote .hd .r { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--amber-ink); }
+.vote .bi { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-3); display: grid; place-items: center; flex: none; font-size: 13px; font-weight: 600; color: var(--avatar-ink); }
+.vote .bi.A { box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 3.5px var(--team-a); }
+.vote .bi.B { box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 3.5px var(--team-b); }
+.vote .opts { display: flex; gap: 8px; }
+.vote .opts button { flex: 1; height: 44px; border-radius: 12px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); font-size: 14px; font-weight: 600; color: var(--text); }
+.vote .opts button.on { background: var(--text); color: var(--bg); box-shadow: none; }
+.vote .opts button[aria-disabled="true"] { color: var(--text-faint); }
+.vote .tally { font-size: 11px; color: var(--text-dim); margin-top: -4px; }

@@ -1,0 +1,202 @@
+/* Component styles transcribed from docs/html and docs/boards. Every colour comes from
+   a token so the light theme and two-colour deck switch with data attributes. */
+
+.mono { font-family: 'DM Mono', ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+/* boards render .k at regular weight (HANDOFF §2 says 700; the PNGs win) */
+.k-label { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--text-dim); }
+
+/* suit colours: on a card face (.sf-*) and on UI surfaces (.su-*) */
+.sf-S { color: var(--suit-s); } .sf-H { color: var(--suit-h); } .sf-D { color: var(--suit-d); } .sf-C { color: var(--suit-c); }
+.su-S { color: var(--suit-s-ui); } .su-H { color: var(--suit-h-ui); } .su-D { color: var(--suit-d-ui); } .su-C { color: var(--suit-c-ui); }
+
+/* team swatch: A round, B square (never colour alone) */
+.swatch { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }
+.swatch.A { background: var(--team-a); }
+.swatch.B { background: var(--team-b); border-radius: 2px; }
+
+/* ------------------------------------------------------------------ Card */
+.card {
+  position: relative; flex: none; background: var(--card);
+  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
+  box-shadow: inset 0 0 0 1px var(--card-line);
+}
+.card .ix { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; }
+.card .rk { font-family: 'DM Mono', ui-monospace, monospace; font-weight: 500; line-height: 1; letter-spacing: -.05em; }
+.card .bp { align-self: flex-end; flex: none; }
+.card .tn { position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 13px solid var(--notch); border-left: 13px solid transparent; }
+
+/* hand sizes: S 56, M 62, L 70 */
+.card.hand { overflow: hidden; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--card-line), var(--shadow-hand); }
+.card.hand-56 { width: 56px; height: 78px; padding: 4px 4px 5px; }
+.card.hand-56 .ix { min-width: 18px; } .card.hand-56 .rk { font-size: 17px; } .card.hand-56 .ix svg { width: 12px; height: 12px; } .card.hand-56 .bp { width: 22px; height: 22px; }
+.card.hand-62 { width: 62px; height: 87px; padding: 5px 5px 6px; }
+.card.hand-62 .ix { min-width: 20px; } .card.hand-62 .rk { font-size: 19px; } .card.hand-62 .ix svg { width: 13px; height: 13px; } .card.hand-62 .bp { width: 24px; height: 24px; }
+.card.hand-70 { width: 70px; height: 98px; padding: 6px 6px 7px; border-radius: 9px; }
+.card.hand-70 .ix { min-width: 22px; } .card.hand-70 .rk { font-size: 21px; } .card.hand-70 .ix svg { width: 14px; height: 14px; } .card.hand-70 .bp { width: 26px; height: 26px; }
+
+/* trick 46 × 64: rank + one large suit */
+.card.trick { width: 46px; height: 64px; padding: 5px; border-radius: 7px; box-shadow: inset 0 0 0 1px var(--card-line), var(--shadow-trick); }
+.card.trick .rk { font-size: 16px; letter-spacing: -.04em; }
+.card.trick .ix svg { display: none; }
+.card.trick .bp { width: 20px; height: 20px; }
+.card.trick .tn { border-top-width: 10px; border-left-width: 10px; border-top-right-radius: 6px; }
+
+/* mini 30 × 42: rank + suit only */
+.card.mini { width: 30px; height: 42px; padding: 3px 4px; border-radius: 5px; overflow: hidden; }
+.card.mini .rk { font-size: 12px; }
+.card.mini .ix svg { display: none; }
+.card.mini .bp { width: 12px; height: 12px; }
+.card.mini .tn { border-top-width: 8px; border-left-width: 8px; }
+
+/* states */
+.card.is-selected { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--amber), var(--shadow-hand); z-index: 20; }
+.card.is-dimmed { filter: var(--card-dim-filter); }
+.card.is-dimmed::after { content: ''; position: absolute; inset: 0; background: var(--card-veil); pointer-events: none; }
+.card.is-winning { box-shadow: 0 0 0 2px var(--felt-out), 0 0 0 4px var(--blue-ring), var(--shadow-trick); }
+.card.is-cut::after { content: ''; position: absolute; inset: -6px; border-radius: 12px; box-shadow: 0 0 18px 3px var(--cut-glow); pointer-events: none; }
+.card.is-slot { background: none; box-shadow: inset 0 0 0 1.5px var(--amber); }
+.card.is-slot.is-held { opacity: .5; }
+.card.is-thinking { background: none; box-shadow: inset 0 0 0 1.5px var(--think-line); animation: c-breathe 1.6s ease-in-out infinite; }
+
+/* full face (≥ 76 px, deck preview) */
+.card.full { width: 76px; height: 106px; border-radius: 8px; overflow: hidden; display: block; padding: 0; box-shadow: inset 0 0 0 1px var(--card-line), 0 4px 10px rgba(0,0,0,.35); }
+.card.full .fix { position: absolute; left: 4px; top: 5px; width: 16px; display: flex; flex-direction: column; align-items: center; gap: 1px; line-height: 1; }
+.card.full .fix.bt { left: auto; top: auto; right: 4px; bottom: 5px; transform: rotate(180deg); }
+.card.full .fix .rk { font-size: 14px; letter-spacing: -.06em; }
+.card.full .fix svg { width: 10px; height: 10px; }
+.card.full .pp { position: absolute; width: 12px; height: 12px; }
+.card.full .pp.dn { transform: rotate(180deg); }
+.card.full .ace { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; transform: translate(-50%, -50%); }
+.card.full .ring { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; transform: translate(-50%, -50%); border-radius: 50%; box-shadow: inset 0 0 0 1px currentColor; opacity: .35; }
+.card.full .ct { position: absolute; left: 22px; right: 22px; top: 14px; bottom: 14px; border-radius: 4px; box-shadow: inset 0 0 0 1px currentColor; display: flex; flex-direction: column; align-items: center; justify-content: center; background-image: radial-gradient(circle, currentColor 0 .8px, transparent 1.2px); background-size: 6px 6px; background-position: 3px 3px; }
+.card.full .ctin { background: var(--card); border-radius: 3px; padding: 4px 4px 3px; display: flex; flex-direction: column; align-items: center; gap: 1px; box-shadow: 0 0 0 1px currentColor; }
+.card.full .ctin .L { font-size: 24px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+.card.full .ctin svg { width: 11px; height: 11px; }
+
+/* -------------------------------------------------------------- CardBack */
+.card-back {
+  flex: none; display: grid; place-items: center; border-radius: 8px;
+  background-color: var(--back);
+  background-image:
+    radial-gradient(circle, rgba(233,228,255,.6) 0 1px, transparent 1.5px),
+    repeating-linear-gradient(45deg, rgba(233,228,255,.26) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, rgba(233,228,255,.26) 0 1px, transparent 1px 6px);
+  background-size: 8.5px 8.5px, auto, auto;
+  background-position: 4.2px 4.2px, 0 0, 0 0;
+  box-shadow: inset 0 0 0 2.5px var(--back), inset 0 0 0 3.5px var(--back-line), inset 0 0 0 6px var(--back), 0 4px 10px rgba(0,0,0,.4);
+}
+.card-back::after { content: ''; width: 34%; aspect-ratio: 1; border-radius: 50%; background: var(--back); box-shadow: 0 0 0 1px rgba(233,228,255,.7), inset 0 0 0 3px var(--back), inset 0 0 0 4px rgba(233,228,255,.45); }
+.card-back.xl {
+  width: 120px; height: 168px; border-radius: 12px;
+  background-image:
+    radial-gradient(circle, rgba(233,228,255,.6) 0 1.3px, transparent 1.8px),
+    repeating-linear-gradient(45deg, rgba(233,228,255,.26) 0 1px, transparent 1px 8.5px),
+    repeating-linear-gradient(-45deg, rgba(233,228,255,.26) 0 1px, transparent 1px 8.5px);
+  background-size: 12px 12px, auto, auto; background-position: 6px 6px, 0 0, 0 0;
+  box-shadow: inset 0 0 0 4px var(--back), inset 0 0 0 5.5px var(--back-line), inset 0 0 0 10px var(--back), 0 8px 18px rgba(0,0,0,.45);
+}
+.card-back.hand { width: 62px; height: 87px; }
+.card-back.trick { width: 46px; height: 64px; border-radius: 7px; }
+.card-back.mini { width: 30px; height: 42px; border-radius: 5px; box-shadow: inset 0 0 0 2px var(--back), inset 0 0 0 3px rgba(233,228,255,.6); }
+.card-back.mini::after { width: 40%; }
+
+/* ------------------------------------------------------------- Hand fan */
+.fan { position: relative; flex: none; }
+.fan > .card { position: absolute; transform-origin: 50% 130%; transition: top calc(120ms * var(--motion-scale)) var(--ease-travel); }
+
+/* ----------------------------------------------------------------- Table */
+.table { position: relative; flex: none; }
+.felt {
+  position: absolute; left: 30px; right: 30px; top: 40px; bottom: 44px; border-radius: 999px;
+  background: radial-gradient(ellipse at 50% 45%, var(--felt-in) 0%, var(--felt-out) 70%);
+  box-shadow: inset 0 0 0 1px var(--felt-ring-1), inset 0 0 0 10px var(--felt-ring-2), inset 0 0 0 11px var(--rim);
+}
+.table .trick-card { position: absolute; z-index: 1; }
+
+/* trick tags: LED, CUT */
+.ttag { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); font-size: 8px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--text-dim); padding: 1px 5px; border-radius: 5px; white-space: nowrap; line-height: normal; }
+.ttag.cut { color: var(--tag-cut-ink); background: var(--tag-cut-bg); }
+
+/* ----------------------------------------------------------- PlayerBadge */
+.seat { position: absolute; width: 84px; display: flex; flex-direction: column; align-items: center; gap: 12px; z-index: 2; }
+.seat .av { width: 42px; height: 42px; border-radius: 50%; background: var(--surface-3); display: grid; place-items: center; font-size: 15px; font-weight: 600; color: var(--avatar-ink); position: relative; }
+.seat .av.A { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--team-a); }
+.seat .av.B { box-shadow: 0 0 0 3px var(--bg), 0 0 0 4.5px var(--team-b), 0 0 0 6px var(--bg), 0 0 0 7.5px var(--team-b); }
+.seat.me .av { background: var(--amber); color: var(--on-amber); }
+.seat.off .av { opacity: .5; }
+.seat .av .bot { width: 22px; height: 22px; color: var(--text-2); }
+.seat .tmr {
+  position: absolute; inset: -10px; border-radius: 50%;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  animation: c-tick 1.6s ease-in-out infinite;
+}
+.seat .nb { position: absolute; top: -9px; right: -13px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--bg); z-index: 2; }
+.seat .nb.call { background: var(--text); color: var(--bg); }
+.seat .nb.wait { background: var(--surface-2); color: var(--amber); }
+.seat .nb.sar { background: var(--surface-2); color: var(--text); box-shadow: 0 0 0 2px var(--bg), inset 0 0 0 1px var(--sar-line); }
+.seat .nb.pending { background: var(--amber); color: var(--on-amber); }
+.seat .dl { position: absolute; left: -8px; bottom: -6px; width: 17px; height: 17px; border-radius: 50%; background: var(--text); color: var(--bg); font-size: 9px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--bg); z-index: 2; }
+.seat .nm { font-size: 12px; font-weight: 600; white-space: nowrap; max-width: 84px; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
+.seat .sr { display: flex; align-items: center; gap: 5px; height: 14px; white-space: nowrap; margin-top: -6px; }
+.seat .hn { display: flex; align-items: center; gap: 2px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); }
+.seat .hn svg { width: 12px; height: 12px; }
+.seat .bdr { height: 14px; padding: 0 5px; border-radius: 7px; background: var(--text); color: var(--bg); font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; display: flex; align-items: center; }
+.seat .stx { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); }
+.seat .stx.hot { color: var(--amber); } .seat .stx.mute { color: var(--text-faint); } .seat .stx.bad { color: var(--coral); } .seat .stx.ok { color: var(--blue-ring); }
+
+/* --------------------------------------------------------------- RacePill */
+.pill { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; z-index: 1; }
+.pill .race { display: flex; gap: 2px; border-radius: 9px; overflow: hidden; }
+.pill .race span { display: flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; background: var(--surface-2); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill .race span.hot { background: var(--amber); color: var(--on-amber); }
+.pill .race span.hot .swatch { box-shadow: 0 0 0 1.5px var(--on-amber); }
+.pill .chip { font-size: 12px; font-weight: 600; height: 24px; padding: 0 10px; border-radius: 9px; background: var(--surface-2); display: flex; align-items: center; white-space: nowrap; }
+.pill .t { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.pill .dots { display: flex; gap: 3px; margin-top: 1px; }
+.pill .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.pill .dots i.A { background: var(--team-a); }
+.pill .dots i.B { background: var(--team-b); border-radius: 1.5px; }
+.pill .dots i.now { background: var(--text); }
+.pill .bars { display: flex; gap: 4px; margin-top: 1px; }
+.pill .bars i { width: 16px; height: 5px; border-radius: 3px; background: var(--line); }
+.pill .bars.wide i { width: 28px; }
+.pill .bars i.on { background: var(--text-2); }
+
+/* high bid in the centre during the auction */
+.high-bid { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 1; }
+.high-bid .n { font-family: 'DM Mono', monospace; font-size: 52px; font-weight: 500; line-height: 1; letter-spacing: -.04em; }
+.high-bid.compact .n { font-size: 44px; }
+.high-bid .n.pending { color: var(--amber-ink); }
+.high-bid .w { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.high-bid.compact .w { font-size: 12px; }
+
+/* ------------------------------------------------------------------- HUD */
+.hud { height: 52px; padding: 0 4px 0 12px; display: flex; align-items: center; gap: 8px; flex: none; }
+.ledger-pill { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px 0 8px; border-radius: 16px; background: var(--surface-1); font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: inset 0 0 0 1px var(--pill-line); }
+.ledger-pill .v { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; }
+.contract-chip { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 16px; background: var(--surface-1); font-size: 12px; white-space: nowrap; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--pill-line); }
+.contract-chip b { font-family: 'DM Mono', monospace; font-weight: 500; font-size: 14px; color: var(--text); }
+.contract-chip b.tickup { color: var(--blue-ring); }
+.contract-chip .sep { width: 1px; height: 14px; background: var(--line); }
+.hukum-chip { display: flex; align-items: center; gap: 3px; height: 22px; padding: 0 7px 0 4px; border-radius: 11px; background: var(--hukum); color: var(--suit-s); font-weight: 600; font-size: 12px; box-shadow: inset 0 0 0 1px var(--card-line); }
+.hukum-chip svg { width: 14px; height: 14px; }
+.hukum-chip.docking { box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 3.5px var(--amber), 0 0 16px 2px rgba(242,181,68,.4); }
+.icon-btn { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: var(--text-2); flex: none; position: relative; }
+.icon-btn svg { width: 22px; height: 22px; }
+.icon-btn.sq { background: var(--surface-1); }
+
+/* last trick button */
+.last-trick { position: absolute; right: 0; bottom: 0; height: 36px; padding: 0 12px; border-radius: 18px; background: var(--surface-1); font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; z-index: 3; }
+.last-trick::before { content: ''; position: absolute; inset: -4px 0; } /* 44 px tall hit area */
+
+@keyframes c-tick { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+@keyframes c-breathe { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+
+[data-motion="reduced"] .seat .tmr, [data-motion="reduced"] .card.is-thinking { animation: none; }
+[data-motion="reduced"] .fan > .card { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="normal"]):not([data-motion="fast"]):not([data-motion="relaxed"]) .seat .tmr,
+  :root:not([data-motion="normal"]):not([data-motion="fast"]):not([data-motion="relaxed"]) .card.is-thinking { animation: none; }
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

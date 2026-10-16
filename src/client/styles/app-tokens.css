@@ -1,0 +1,34 @@
+/* Values the boards use that chaugadi-tokens.css does not name. Keep chaugadi-tokens.css
+   verbatim from the design package and add derived or missing values here. */
+:root {
+  --felt-ring-1: var(--surface-3);
+  --felt-ring-2: #12151A;
+  --avatar-ink: #DCE0E6;
+  --sar-line: #3A404B;
+  --think-line: #5A606B;
+  --cut-glow: rgba(245, 245, 242, .45);
+  --tag-cut-bg: #F5F5F2;
+  --tag-cut-ink: #0E1014;
+  --card-dim-filter: brightness(.42);
+  --card-veil: transparent;
+  --pill-line: transparent;
+  --notch: #1B1D24;
+  --hand-icon-back: #3A404B;
+  --hand-icon-front: #6B717D;
+}
+
+[data-theme="light"] {
+  --felt-ring-2: #E6E4DD;
+  --avatar-ink: #15171C;
+  --sar-line: #C4C1B8;
+  --think-line: #A9A69D;
+  --cut-glow: rgba(21, 23, 28, .22);
+  --tag-cut-bg: #15171C;
+  --tag-cut-ink: #FFFFFF;
+  /* light theme never dims with brightness: cards overlap, so an opaque veil instead */
+  --card-dim-filter: none;
+  --card-veil: rgba(214, 211, 203, .74);
+  --pill-line: #E2E0D9;
+  --hand-icon-back: #C4C1B8;
+  --hand-icon-front: #8A8F98;
+}

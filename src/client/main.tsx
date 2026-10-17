@@ -2,10 +2,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { bindAudioUnlock, setVolume } from './audio/sounds';
+import { bindGuestRename } from './net/guest';
 import { bindSettingsToDocument, useSettings } from './stores/settings';
 import './styles/index.css';
 
 bindSettingsToDocument();
+bindGuestRename();
 // Audio starts on the first gesture (GDD §12.3).
 bindAudioUnlock();
 setVolume(useSettings.getState().volume / 100);

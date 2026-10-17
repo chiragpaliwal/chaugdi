@@ -129,7 +129,8 @@ export class Room {
         this.presence(seat);
         repace = was !== this.control(seat) && this.isTurn(seat);
       } else if (this.inLobby() && s.startingAt === null) {
-        const free = SEATS.find((x) => s.seats[x] === null);
+        // An empty seat first; otherwise a human joining takes a bot's seat.
+        const free = SEATS.find((x) => s.seats[x] === null) ?? SEATS.find((x) => s.seats[x]?.isBot);
         if (free !== undefined) {
           s.seats[free] = this.human(playerId, name);
           this.presence(free);
@@ -293,6 +294,7 @@ export class Room {
         this.requireSeat(playerId);
         if (s.match?.phase !== 'ROUND_EVAL') throw new Reject('WRONG_PHASE');
         if (!s.continued.includes(playerId)) s.continued.push(playerId);
+        this.lobbyDirty = true;
         if (this.everyoneContinued()) this.nextRound();
         return;
       }
@@ -589,7 +591,8 @@ export class Room {
         });
       }
     }
-    return { code: s.code, status: this.status(), you: this.seatOf(playerId), seats, settings: { ...s.settings }, startingAt: s.startingAt, holds };
+    const continued = s.match?.phase === 'ROUND_EVAL' ? SEATS.filter((x) => { const p = s.seats[x]?.playerId; return !!p && s.continued.includes(p); }) : [];
+    return { code: s.code, status: this.status(), you: this.seatOf(playerId), seats, settings: { ...s.settings }, startingAt: s.startingAt, holds, continued };
   }
 
   private sync(playerId: string): ServerMessage {

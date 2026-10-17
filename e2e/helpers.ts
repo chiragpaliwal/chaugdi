@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 export type Settings = Partial<{ motion: string; botLevel: string; sound: boolean; haptics: boolean; matchLength: string }>;
 
@@ -21,29 +21,40 @@ export const visible = (page: Page, sel: string) => page.locator(sel).first().is
 
 export type Step = 'bid' | 'hukum' | 'play' | 'summary' | 'result' | 'tip' | null;
 
+/** Clicks unless the element goes away first (online, a sheet closes when the update lands). */
+const tap = (l: Locator) => l.click({ timeout: 3000 }).then(() => true, () => false);
+
 /** One move of a simple human: bid 7 when allowed (if `bid`), else pass; call Hukum; play the first legal card. */
-export async function step(page: Page, opts: { bid?: boolean } = {}): Promise<Step> {
+export interface StepOptions {
+  bid?: boolean;
+  /** Called with the screen just found, before the move answers it (audits, screenshots). */
+  inspect?: (s: Exclude<Step, null | 'tip'>) => Promise<void>;
+}
+
+export async function step(page: Page, opts: StepOptions = {}): Promise<Step> {
+  const seen = async (s: Exclude<Step, null | 'tip'>) => { await opts.inspect?.(s); return s; };
   if (await visible(page, '.sheet[aria-label="Your call"]')) {
+    await seen('bid');
     const seven = page.locator('.bid-num:has-text("7"):not([aria-disabled])');
-    if (opts.bid && await seven.count()) { await seven.first().click(); await page.click('.sheet-btns .cta'); }
-    else await page.click('.sheet-btns .pass');
+    if (opts.bid && await seven.count()) { if (await tap(seven.first())) await tap(page.locator('.sheet-btns .cta')); }
+    else await tap(page.locator('.sheet-btns .pass'));
     return 'bid';
   }
-  if (await visible(page, '.sheet[aria-label="Call Hukum"]')) { await page.click('.sheet > .cta'); return 'hukum'; }
+  if (await visible(page, '.sheet[aria-label="Call Hukum"]')) { await seen('hukum'); await tap(page.locator('.sheet > .cta')); return 'hukum'; }
   if (await visible(page, '.dock .cta:has-text("Pick a card")')) {
+    await seen('play');
     const card = page.locator('.fan > .card:not([aria-disabled])').first();
-    await card.click();
-    await card.click();
+    if (await tap(card)) await tap(card);
     return 'play';
   }
-  if (await visible(page, '.result-scr .rs-dock .cta')) { await page.click('.rs-dock .cta'); return 'summary'; }
-  if (await visible(page, '.mr-btns')) return 'result';
+  if (await visible(page, '.result-scr .rs-dock .cta')) { await seen('summary'); await tap(page.locator('.rs-dock .cta')); return 'summary'; }
+  if (await visible(page, '.mr-btns')) return seen('result');
   await page.waitForTimeout(60);
   return null;
 }
 
 /** Steps until `until` returns true or the deadline passes. */
-export async function playUntil(page: Page, until: (s: Step) => boolean | Promise<boolean>, opts: { bid?: boolean; ms?: number } = {}) {
+export async function playUntil(page: Page, until: (s: Step) => boolean | Promise<boolean>, opts: StepOptions & { ms?: number } = {}) {
   const deadline = Date.now() + (opts.ms ?? 90_000);
   while (Date.now() < deadline) {
     const s = await step(page, opts);

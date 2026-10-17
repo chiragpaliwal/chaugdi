@@ -1,11 +1,18 @@
 import { useState } from 'react';
 import type { Seat } from '../../engine/types';
-import { ONLINE } from '../../shared/constants';
+import { ONLINE, TARGET_SCORE, type MatchLength } from '../../shared/constants';
 import { Segmented } from '../components/Controls';
 import { BotIcon } from '../components/GameParts';
 import type { BotLevel } from '../stores/settings';
 
-export interface LobbyPlayer { name: string; isBot: boolean; ready: boolean; isHost: boolean }
+export interface LobbyPlayer {
+  name: string;
+  isBot: boolean;
+  ready: boolean;
+  isHost: boolean;
+  /** False while a human's seat is held after they dropped. */
+  connected?: boolean;
+}
 
 export interface LobbyView {
   code: string;
@@ -15,6 +22,8 @@ export interface LobbyView {
   seats: Record<Seat, LobbyPlayer | null>;
   turnSeconds: 10 | 20 | 30;
   botLevel: BotLevel;
+  /** Online rooms: first to +26 or +52 (host setting). */
+  matchLength?: MatchLength;
   /** Seconds until the deal once the host starts (03c). */
   startingIn?: number | null;
 }
@@ -25,18 +34,23 @@ interface Props {
   height?: number;
   onLeave?: () => void;
   onFillBot?: (seat: Seat) => void;
+  onRemoveBot?: (seat: Seat) => void;
   /** Host: make this seat your partner (GDD swapTeams). */
   onPartner?: (seat: Seat) => void;
   onTurnSeconds?: (s: 10 | 20 | 30) => void;
   onBotLevel?: (l: BotLevel) => void;
+  onMatchLength?: (m: MatchLength) => void;
   onReady?: (ready: boolean) => void;
   onStart?: () => void;
   onCancel?: () => void;
+  /** A refused action, shown under the button. */
+  error?: string | null;
 }
 
 const TIMERS = [{ value: '10', label: '10s' }, { value: '20', label: '20s' }, { value: '30', label: '30s' }] as const;
 const BOTS = [{ value: 'easy', label: 'Easy' }, { value: 'medium', label: 'Medium' }, { value: 'hard', label: 'Hard' }] as const;
 const LEVEL: Record<BotLevel, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+const LENGTHS = [{ value: 'short', label: `+${TARGET_SCORE.short}` }, { value: 'standard', label: `+${TARGET_SCORE.standard}` }] as const;
 
 /** The deal starts this many seconds after the host taps Start (03c). */
 export const START_SECONDS = ONLINE.startSeconds;
@@ -48,7 +62,7 @@ function Tick() {
 }
 
 /** Screens 03 / 03b / 03c. You at the bottom, your partner opposite. */
-export function LobbyScreen({ v, width = 390, height = 844, onLeave, onFillBot, onPartner, onTurnSeconds, onBotLevel, onReady, onStart, onCancel }: Props) {
+export function LobbyScreen({ v, width = 390, height = 844, onLeave, onFillBot, onRemoveBot, onPartner, onTurnSeconds, onBotLevel, onMatchLength, onReady, onStart, onCancel, error }: Props) {
   const [copied, setCopied] = useState(false);
   const me = v.seats[v.you];
   const isHost = !!me?.isHost;
@@ -131,14 +145,19 @@ export function LobbyScreen({ v, width = 390, height = 844, onLeave, onFillBot, 
             );
           }
           const isReady = p.isBot || p.ready;
+          const away = !p.isBot && p.connected === false;
           return (
             <div key={k} className="lslot" style={{ left: x, top: y }}>
               <div className={`av ${team}${k === 0 ? ' me' : ''}`}>
                 {p.isBot ? <BotIcon /> : (k === 0 ? 'Y' : p.name.charAt(0))}
-                {isReady && <span className="ok" aria-label="Ready"><Tick /></span>}
+                {isReady && <span className="ok" role="img" aria-label="Ready"><Tick /></span>}
               </div>
               <span className="nm">{k === 0 ? 'You' : p.isBot ? `${p.name} · bot` : p.name}{p.isHost && <span className="host">HOST</span>}</span>
-              <span className={`rs${isReady ? ' on' : ''}`}>{isReady ? 'Ready' : 'Not ready'}</span>
+              {away ? <span className="rs">Reconnecting…</span>
+                : <span className={`rs${isReady ? ' on' : ''}`}>{isReady ? 'Ready' : 'Not ready'}</span>}
+              {p.isBot && isHost && !starting && onRemoveBot && (
+                <button className="fill" aria-label={`Remove bot ${p.name}`} onClick={() => onRemoveBot(seat)}>Remove bot</button>
+              )}
             </div>
           );
         })}
@@ -161,7 +180,15 @@ export function LobbyScreen({ v, width = 390, height = 844, onLeave, onFillBot, 
           {isHost ? <Segmented label="Bot difficulty" tall options={BOTS} value={v.botLevel} onChange={(l: BotLevel) => onBotLevel?.(l)} />
             : <span className="val">{LEVEL[v.botLevel]}</span>}
         </div>
+        {v.matchLength && (
+          <div className="gr">
+            <span className="l">First to</span>
+            {isHost ? <Segmented label="Match length" tall options={LENGTHS} value={v.matchLength} onChange={(m: MatchLength) => onMatchLength?.(m)} />
+              : <span className="val">+{TARGET_SCORE[v.matchLength]}</span>}
+          </div>
+        )}
       </section>
+      {error && <p className="join-msg" role="alert">{error}</p>}
 
       <button className={`lobby-cta ${cta.cls}`} aria-live="polite" aria-disabled={!cta.act || undefined} onClick={cta.act}>
         {starting && <span className="ring" aria-hidden="true" style={{ background: `conic-gradient(var(--on-amber) ${Math.round(((v.startingIn ?? 0) / START_SECONDS) * 100)}%, rgba(26,20,5,.18) 0)` }} />}

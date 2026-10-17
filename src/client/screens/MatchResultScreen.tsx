@@ -28,7 +28,8 @@ const CONFETTI: Record<Team, string[]> = {
 };
 
 /** Screens 15 / 15b. A Kot ends the match with no points added (GDD §3.5, delta 0). */
-export function MatchResultScreen({ v, width = 390, height = 844, onHome, onRematch }: { v: MatchResultView; width?: number; height?: number; onHome?: () => void; onRematch?: () => void }) {
+/** `rematchWaiting`: online, only the host may rematch; others see this in place of the button. */
+export function MatchResultScreen({ v, width = 390, height = 844, onHome, onRematch, rematchWaiting }: { v: MatchResultView; width?: number; height?: number; onHome?: () => void; onRematch?: () => void; rematchWaiting?: string }) {
   const kot = v.reason === 'KOT';
   const vals = [0, ...v.history.map((r) => r.ledgerAfter)];
   const final = vals[vals.length - 1]!;
@@ -102,7 +103,9 @@ export function MatchResultScreen({ v, width = 390, height = 844, onHome, onRema
 
       <div className="mr-btns">
         <button className="sec" onClick={onHome}>Home</button>
-        <button className="cta" onClick={onRematch}>Rematch, same teams</button>
+        {rematchWaiting
+          ? <button className="cta" aria-disabled="true" style={{ opacity: 0.55 }}>{rematchWaiting}</button>
+          : <button className="cta" onClick={onRematch}>Rematch, same teams</button>}
       </div>
     </main>
   );

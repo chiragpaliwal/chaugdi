@@ -24,18 +24,28 @@ for (const theme of ['dark', 'light'] as const) {
       await audit(page, 'settings');
     });
 
+    test('online lobby', async ({ page }) => {
+      await openApp(page, { theme, nickname: 'Asha' } as never);
+      await page.getByRole('button', { name: /create room/i }).click();
+      await page.waitForSelector('.room-code');
+      await page.getByRole('button', { name: /fill with bot/i }).first().click();
+      await expect(page.getByRole('button', { name: /^remove /i })).toBeVisible();
+      await audit(page, 'lobby');
+    });
+
     test('bid sheet, Hukum, your turn and round summary', async ({ page }) => {
       await openApp(page, { theme } as never);
       await page.getByRole('button', { name: /play vs bots/i }).click();
       const seen = new Set<string>();
-      await playUntil(page, async (s) => {
-        if (await visible(page, '.sheet[aria-label="Your call"]') && !seen.has('bid')) { seen.add('bid'); await audit(page, 'bid sheet'); }
-        if (await visible(page, '.sheet[aria-label="Call Hukum"]') && !seen.has('hukum')) { seen.add('hukum'); await audit(page, 'hukum'); }
-        if (await visible(page, '.dock .cta:has-text("Pick a card")') && !seen.has('turn')) { seen.add('turn'); await audit(page, 'your turn'); }
-        if (await visible(page, '.result-scr') && !seen.has('summary')) { seen.add('summary'); await audit(page, 'round summary'); }
-        return s === 'summary' || s === 'result';
-      }, { bid: true, ms: 150_000 });
-      expect([...seen]).toEqual(expect.arrayContaining(['bid', 'turn', 'summary']));
+      const names = { bid: 'bid sheet', hukum: 'hukum', play: 'your turn', summary: 'round summary', result: 'match result' } as const;
+      // Audit each screen once, just before the move answers it.
+      const inspect = async (s: keyof typeof names) => {
+        if (seen.has(s)) return;
+        seen.add(s);
+        await audit(page, names[s]);
+      };
+      await playUntil(page, (s) => s === 'summary' || s === 'result', { bid: true, ms: 150_000, inspect });
+      expect([...seen]).toEqual(expect.arrayContaining(['bid', 'play', 'summary']));
     });
   });
 }

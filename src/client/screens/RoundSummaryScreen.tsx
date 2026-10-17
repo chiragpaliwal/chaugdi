@@ -124,7 +124,7 @@ export function RoundSummaryScreen({ v, width = 390, height = 844, onReady, onHi
         <div className="rs-nxh">Next: round {v.next.roundNo}<span className="r"><span className="rs-dl" aria-hidden="true">D</span>{v.next.dealerName} {v.next.dealerName === 'You' ? (v.next.stays ? 'deal again' : 'deal next') : v.next.stays ? 'deals again' : 'deals next'}</span></div>
         <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: -4 }}>{v.next.note}</div>
         <div className="rs-ready">
-          {readyList.map((r) => <span key={r.initial} className={`rs-ra${r.ready ? ' on' : ''}${r.isMe ? ' me' : ''}`}>{r.initial}</span>)}
+          {readyList.map((r, i) => <span key={i} className={`rs-ra${r.ready ? ' on' : ''}${r.isMe ? ' me' : ''}`}>{r.initial}</span>)}
           <span className="t">{readyCount} of {readyList.length} ready · deals in {left}s</span>
         </div>
       </section>

@@ -98,11 +98,21 @@ export function LastTrickButton({ onClick }: { onClick?: () => void }) {
   );
 }
 
+export interface BannerProps {
+  text: string;
+  countdown?: string;
+  /** A spinner while something is in progress (reconnecting); off for a plain notice. */
+  spin?: boolean;
+  /** One action at the end of the line (I'm back). */
+  action?: { label: string; onClick: () => void };
+}
+
 /** Your own connection problem, under the HUD (13). */
-export function Banner({ text, countdown }: { text: string; countdown?: string }) {
+export function Banner({ text, countdown, spin = true, action }: BannerProps) {
   return (
     <div className="banner" role="status" aria-live="assertive">
-      <span className="sp" aria-hidden="true" />{text}{countdown && <span className="r">{countdown}</span>}
+      {spin && <span className="sp" aria-hidden="true" />}{text}{countdown && <span className="r">{countdown}</span>}
+      {action && <button className="act" onClick={action.onClick}>{action.label}</button>}
     </div>
   );
 }

@@ -209,6 +209,9 @@
 .banner { display: flex; align-items: center; gap: 10px; margin: 0 12px; padding: 0 12px; height: 40px; border-radius: 12px; background: #2A2210; color: var(--amber); font-size: 13px; font-weight: 600; flex: none; }
 .banner .sp { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(242,181,68,.3); border-top-color: var(--amber); animation: b-spin calc(.9s * max(var(--motion-scale), .5)) linear infinite; flex: none; }
 .banner .r { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; color: #C9A458; }
+.banner .act { margin-left: auto; height: 30px; padding: 0 12px; border-radius: 15px; background: var(--amber); color: var(--on-amber); font-size: 13px; font-weight: 600; flex: none; position: relative; }
+.banner .act::before { content: ''; position: absolute; inset: -7px 0; } /* 44 px hit area */
+.banner .r + .act { margin-left: 8px; }
 [data-theme="light"] .banner { background: #F6E7C4; color: var(--amber-ink); }
 [data-theme="light"] .banner .r { color: var(--amber-ink); }
 @keyframes b-spin { to { transform: rotate(360deg); } }
@@ -230,3 +233,8 @@
 .seen-row > svg { width: 16px; height: 16px; flex: none; }
 .seen-row .mono { width: 18px; font-size: 12px; }
 @keyframes ov-in { from { opacity: 0; } }
+
+/* Online banners and votes floating over the auction, Hukum and deal screens (13) */
+.online-top { position: absolute; left: 0; right: 0; top: 56px; z-index: 20; }
+.online-bottom { position: absolute; left: 0; right: 0; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 20; display: flex; flex-direction: column; }
+.online-bottom .vote, .online-bottom .toast { box-shadow: inset 0 0 0 1px var(--sar-line), var(--shadow-sheet); }

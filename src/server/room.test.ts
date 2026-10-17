@@ -199,6 +199,15 @@ describe('lobby', () => {
     h.advance(ONLINE.graceMs);
     expect(h.room$('ben').you).toBe(1);
   });
+
+  it('a human joining a full lobby takes a bot seat', () => {
+    const h = harness({ humans: ['host'], bots: [1, 2, 3] });
+    h.connect('ben');
+    expect(h.room$('ben').you).toBe(1);
+    expect(h.room$('host').seats[1]).toMatchObject({ name: 'ben', isBot: false });
+    h.connect('cara');
+    expect(h.room$('cara').you).toBe(2);
+  });
 });
 
 describe('match', () => {
@@ -285,6 +294,7 @@ describe('match', () => {
     const round = h.room.state.match!.round!.roundNo;
     h.send('host', { type: 'continue' });
     expect(h.room.state.match!.round!.roundNo).toBe(round);
+    expect(h.room$('ben').continued).toEqual([0]);
     h.send('ben', { type: 'continue' });
     expect(h.room.state.match!.round!.roundNo).toBe(round + 1);
 

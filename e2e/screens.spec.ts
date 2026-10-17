@@ -66,27 +66,35 @@ test('14 round summary: Ready marks you ready', async ({ page }) => {
   expect(await text(page, '.rs-ready .t')).toMatch(/^3 of 4 ready/);
 });
 
-test('01 home → 03 lobby: room code input, fill with bot, partner, start, cancel', async ({ page }) => {
+test('01 home → 03 lobby: room code input, create, fill with bot, partner, start, cancel', async ({ page }) => {
   await page.goto('/');
+  await page.evaluate(() => localStorage.setItem('chaugadi.settings.v1', JSON.stringify({ nickname: 'Asha' })));
+  await page.reload();
   await page.waitForSelector('.menu-scr');
   await expect(page.locator('.join-row .jb.go')).toHaveCount(0);
   await page.fill('.code-field input', 'k7q0dlm');
   expect(await page.inputValue('.code-field input'), '0 and L are not in the room alphabet').toBe('K7QDM');
   await expect(page.locator('.join-row .jb.go')).toHaveCount(1);
-  await page.click('.join-row .jb');
-  await page.waitForSelector('.room-code');
-  expect(new URL(page.url()).pathname).toBe('/r/K7QDM');
 
-  expect(await text(page, '.lobby-cta')).toMatch(/^Start · waiting for 1 seat/);
-  await page.click('.lslot .fill');
-  await expect(page.locator('.lslot .nm:has-text("· bot")')).not.toHaveCount(0);
-  await expect(page.locator('.lobby-cta')).toContainText('everyone’s ready', { timeout: 4000 });
-  await page.click('.seg[aria-label="Your partner"] button:has-text("Ben")');
-  expect(await page.$$eval('.lslot .nm', (els) => els[2]!.textContent), 'Ben moved to the top seat').toBe('Ben');
+  await page.getByRole('button', { name: /create room/i }).click();
+  await page.waitForSelector('.room-code');
+  expect(new URL(page.url()).pathname).toMatch(/^\/r\/[A-Z0-9]{5}$/);
+  expect(await text(page, '.lobby-cta')).toMatch(/^Start · waiting for 3 seats/);
+  for (let n = 3; n > 0; n--) {
+    await page.locator('.lslot .fill:has-text("Fill with bot")').first().click();
+    await expect(page.locator('.lslot .fill:has-text("Fill with bot")')).toHaveCount(n - 1);
+  }
+  await expect(page.locator('.lobby-cta')).toContainText('everyone’s ready');
+  const top = () => page.$$eval('.lslot .nm', (els) => els[2]!.textContent!.replace(' · bot', ''));
+  const partner = await top();
+  const other = page.locator('.seg[aria-label="Your partner"] button').filter({ hasNotText: partner }).first();
+  const name = (await other.textContent())!;
+  await other.click();
+  await expect.poll(top, { message: 'the chosen bot moved to the top seat' }).toBe(name);
   await page.click('.lobby-cta');
-  expect(await text(page, '.lobby-cta')).toMatch(/^Dealing in 3/);
+  await expect(page.locator('.lobby-cta')).toHaveText(/^Dealing in [1-3]/);
   await page.click('.lobby-cancel');
-  expect(await text(page, '.lobby-cta')).toMatch(/everyone’s ready/);
+  await expect(page.locator('.lobby-cta')).toContainText('everyone’s ready');
 });
 
 test('02 settings: theme, deck and motion switch the <html> attributes and persist', async ({ page }) => {

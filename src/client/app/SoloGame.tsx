@@ -7,8 +7,9 @@ import { Feedback } from '../audio/Feedback';
 import { Card } from '../components/Card';
 import { cardLabel, SUIT_NAME } from '../components/cardText';
 import { SuitIcon } from '../components/SuitIcon';
-import type { AnimSnapshot } from '../anim/queue';
-import { useAnim, useSoloSession, type SoloSession } from '../drivers/session';
+import type { AnimQueue, AnimSnapshot } from '../anim/queue';
+import { useAnim, useSoloSession } from '../drivers/session';
+import type { GameDriver } from '../drivers/types';
 import { AuctionScreen } from '../screens/AuctionScreen';
 import { DealFiveScreen, HukumRevealScreen } from '../screens/DealScreens';
 import { HukumScreen } from '../screens/HukumScreen';
@@ -18,7 +19,7 @@ import { GameMenuProvider } from '../screens/GameFrame';
 import { RoundSummaryScreen } from '../screens/RoundSummaryScreen';
 import { MOTION } from '../../shared/constants';
 import { useSettings } from '../stores/settings';
-import { toTableView } from '../view/adapter';
+import { toTableView, type TableScreen } from '../view/adapter';
 
 interface Props {
   width: number;
@@ -37,19 +38,26 @@ export function SoloGame(props: Props) {
 }
 
 interface MatchTableProps extends Props {
-  session: SoloSession;
+  session: { driver: GameDriver; anim: AnimQueue };
   snap: AnimSnapshot;
   /** Practice hand: "Practice hand" in the ledger pill, no summary auto-advance. */
   practice?: boolean;
+  /** Send Continue when the round summary times out. Online, the server advances it. */
+  autoContinue?: boolean;
+  /** Online: presence, timers, banners and votes on top of the adapted screen. */
+  decorate?: (screen: TableScreen) => TableScreen;
+  onVote?: (choice: 'wait' | 'bot') => void;
+  /** Online, only the host may rematch; everyone else sees this instead. */
+  rematchWaiting?: string;
   /** Leaving the round summary or match result (tutorial: the end of the hand). */
   onFinish?: () => void;
   homeLabel?: string;
-  /** Drawn over the table (coach marks). */
-  children?: React.ReactNode;
+  /** Drawn over the table (coach marks; online banners). A function gets the screen shown. */
+  children?: React.ReactNode | ((screen: TableScreen) => React.ReactNode);
 }
 
 /** The table for a local match: LocalDriver → animation queue → adapter → screens. */
-export function MatchTable({ width, height, onHome, onSettings, session, snap, practice, onFinish, homeLabel = 'Home · the match is saved', children }: MatchTableProps) {
+export function MatchTable({ width, height, onHome, onSettings, session, snap, practice, autoContinue = !practice, decorate, onVote, rematchWaiting, onFinish, homeLabel = 'Home · the match is saved', children }: MatchTableProps) {
   const cardSize = useSettings((s) => s.cardSize);
   const send = session.driver.send.bind(session.driver);
   const [overlay, setOverlay] = useState<'menu' | 'seen' | null>(null);
@@ -57,7 +65,8 @@ export function MatchTable({ width, height, onHome, onSettings, session, snap, p
   const peekTimer = useRef<number>();
   useEffect(() => () => window.clearTimeout(peekTimer.current), []);
 
-  const screen = toTableView({ ...snap, width, peek });
+  const adapted = toTableView({ ...snap, width, peek });
+  const screen = decorate ? decorate(adapted) : adapted;
   if (practice && 'hud' in screen.v) screen.v.hud = { ...screen.v.hud, ledger: { ...screen.v.hud.ledger, label: 'Practice hand' } };
   const size = { width, height };
   const { view } = snap;
@@ -65,10 +74,10 @@ export function MatchTable({ width, height, onHome, onSettings, session, snap, p
   // Round summary auto-advances after 6 s (GDD §5).
   const summaryKey = screen.kind === 'summary' ? view.roundNo : null;
   useEffect(() => {
-    if (summaryKey === null || overlay || practice) return;
+    if (summaryKey === null || overlay || !autoContinue) return;
     const t = window.setTimeout(() => session.driver.send({ type: 'continue' }), MOTION.summarySeconds * 1000);
     return () => window.clearTimeout(t);
-  }, [summaryKey, overlay, practice, session]);
+  }, [summaryKey, overlay, autoContinue, session]);
 
   const showPeek = () => {
     setPeek(true);
@@ -89,13 +98,13 @@ export function MatchTable({ width, height, onHome, onSettings, session, snap, p
       break;
     case 'play':
       body = <PlayScreen v={screen.v} {...size} cardSize={cardSize} onPlay={(card) => send({ type: 'play', card })}
-        onLastTrick={showPeek} onCardsSeen={() => setOverlay('seen')} />;
+        onLastTrick={showPeek} onCardsSeen={() => setOverlay('seen')} onVote={onVote} />;
       break;
     case 'summary':
       body = <RoundSummaryScreen key={`s${view.roundNo}`} v={screen.v} {...size} onReady={onFinish ?? (() => send({ type: 'continue' }))} />;
       break;
     case 'result':
-      body = <MatchResultScreen v={screen.v} {...size} onHome={onFinish ?? onHome} onRematch={onFinish ?? (() => send({ type: 'rematch' }))} />;
+      body = <MatchResultScreen v={screen.v} {...size} onHome={onFinish ?? onHome} onRematch={onFinish ?? (() => send({ type: 'rematch' }))} rematchWaiting={rematchWaiting} />;
       break;
   }
 
@@ -103,7 +112,7 @@ export function MatchTable({ width, height, onHome, onSettings, session, snap, p
     <div style={{ position: 'relative', ...size }}>
       <GameMenuProvider value={() => setOverlay('menu')}>{body}</GameMenuProvider>
       <Feedback anim={session.anim} />
-      {children}
+      {typeof children === 'function' ? children(screen) : children}
       {overlay === 'menu' && (
         <Overlay title="Menu" onClose={() => setOverlay(null)}>
           <button className="btn-secondary" onClick={() => setOverlay(null)}>Back to the table</button>

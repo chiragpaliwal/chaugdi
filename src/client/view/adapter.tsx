@@ -139,7 +139,7 @@ function dealFive(c: Ctx, i: AdaptInput): DealFiveView {
     flying,
     pill: {
       title: 'Dealing 5',
-      line: `${c.name(view.dealer)} deals · one at a time, ${first === c.you ? 'you' : c.name(first)} first`,
+      line: `${view.dealer === c.you ? 'You deal' : `${c.name(view.dealer)} deals`} · one at a time, ${first === c.you ? 'you' : c.name(first)} first`,
       steps: 5, done: Math.floor(landed / 4), nowFraction: (landed % 4) / 4, label: `Pass ${Math.min(5, Math.floor(landed / 4) + 1)} of 5`,
     },
     dock: `Dealing · bidding opens with ${first === c.you ? 'you' : c.name(first)}`,
@@ -245,7 +245,7 @@ function reveal(c: Ctx, i: AdaptInput): HukumRevealView {
     packet,
     pill: {
       title: 'Dealing 8 · in packets of 4',
-      line: `${c.name(view.dealer)} deals · ${leader} trick 1`,
+      line: `${view.dealer === c.you ? 'You deal' : `${c.name(view.dealer)} deals`} · ${leader} trick 1`,
       steps: 2, done: pass, nowFraction: landed / 4, label: `Pass ${pass + 1} of 2`,
     },
     hand: sortHand(first5, trump),

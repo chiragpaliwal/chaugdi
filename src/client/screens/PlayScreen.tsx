@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Play } from '../../engine/tricks';
 import type { CardId, Suit, Team } from '../../engine/types';
 import { cardShort } from '../components/cardText';
-import { Banner, CardsSeenButton, ChatButton, ChatLane, DockStatus, HintLine, LastTrickButton, Reactions, StakeLine, StatusLine, Toast } from '../components/GameParts';
+import { Banner, type BannerProps, CardsSeenButton, ChatButton, ChatLane, DockStatus, HintLine, LastTrickButton, Reactions, StakeLine, StatusLine, Toast } from '../components/GameParts';
 import { HandFan } from '../components/HandFan';
 import { PauseVote, type PauseVoteView } from '../components/PauseVote';
 import { RacePill } from '../components/RacePill';
@@ -37,7 +37,7 @@ export interface PlayView {
   dock?: string;
   unread?: number;
   /** Your connection dropped: banner under the HUD, hand dimmed, actions off (13). */
-  banner?: { text: string; countdown?: string };
+  banner?: BannerProps;
   held?: boolean;
   /** Another player dropped and a bot took their seat (13). */
   toast?: { team: Team; title: string; body: string };

@@ -142,3 +142,10 @@
 .vote .opts button.on { background: var(--text); color: var(--bg); box-shadow: none; }
 .vote .opts button[aria-disabled="true"] { color: var(--text-faint); }
 .vote .tally { font-size: 11px; color: var(--text-dim); margin-top: -4px; }
+
+/* Online room messages: connecting, full, closed (M6) */
+.room-msg-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 0 12px; }
+.room-msg-body h2 { margin: 0; font-size: 22px; font-weight: 800; }
+.room-msg-body p { margin: 0; font-size: 14px; color: var(--text-2); max-width: 300px; }
+.room-msg-body .sp { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--amber); animation: b-spin calc(.9s * max(var(--motion-scale), .5)) linear infinite; }
+[data-motion="reduced"] .room-msg-body .sp { animation: none; }

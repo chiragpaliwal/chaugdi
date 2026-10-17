@@ -2,6 +2,9 @@ import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { cloudflare } from '@cloudflare/vite-plugin';
 
+// Node globals without @types/node (this file runs in Node).
+declare const process: { env: Record<string, string | undefined> };
+
 const PUBLIC_FILES = ['/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-180.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 /**
@@ -52,7 +55,9 @@ self.addEventListener('fetch', (e) => {
 export default defineConfig(({ mode }) => ({
   // The Cloudflare plugin runs the Worker, GameRoom and local D1 inside `vite dev` and
   // `vite preview`, and builds dist/client + dist/chaugadi for `wrangler deploy`.
-  plugins: [react(), serviceWorker(), ...(mode === 'test' ? [] : [cloudflare()])],
+  // CF_PERSIST gives a second local server its own Durable Object and D1 state (the e2e
+  // dev server), so two workerd processes never fire the same room's alarms.
+  plugins: [react(), serviceWorker(), ...(mode === 'test' ? [] : [cloudflare(process.env.CF_PERSIST ? { persistState: { path: process.env.CF_PERSIST } } : {})])],
   server: { port: 5173, strictPort: true },
   test: { include: ['src/**/*.test.ts'] },
 }));

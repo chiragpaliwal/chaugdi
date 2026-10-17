@@ -38,15 +38,15 @@ test('intro, practice hand with tips, Finish returns Home; the solo save is unto
       if (label === 'Finish') break;
       continue;
     }
+    // Short timeouts: a tip can open over the table between the check and the click.
+    const tap = (sel: string) => page.locator(sel).first().click({ timeout: 2000 }).then(() => true, () => false);
     if (await visible(page, '.sheet[aria-label="Your call"]')) {
-      await page.locator('.bid-num:has-text("7"):not([aria-disabled])').first().click();
-      await page.click('.sheet-btns .cta');
+      if (await tap('.bid-num:has-text("7"):not([aria-disabled])')) await tap('.sheet-btns .cta');
     } else if (await visible(page, '.sheet[aria-label="Call Hukum"]')) {
-      await page.click('.sheet > .cta');
+      await tap('.sheet > .cta');
     } else if (await visible(page, '.dock .cta:has-text("Pick a card")')) {
-      const card = page.locator('.fan > .card:not([aria-disabled])').first();
-      await card.click();
-      await card.click();
+      const card = '.fan > .card:not([aria-disabled])';
+      if (await tap(card)) await tap(card);
     } else await page.waitForTimeout(60);
   }
   expect(tips.slice(0, 5)).toEqual(['Your first 5 cards', 'Bid or pass', 'Call Hukum', 'You lead', 'Race to the contract']);

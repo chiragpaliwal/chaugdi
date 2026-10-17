@@ -35,6 +35,7 @@ export default defineConfig({
   ],
   webServer: [
     { command: `npx vite preview --port ${PREVIEW_PORT} --strictPort`, url: PREVIEW_URL, reuseExistingServer: !CI, timeout: 60_000 },
-    { command: `npx vite --port ${DEV_PORT} --strictPort`, url: DEV_URL, reuseExistingServer: !CI, timeout: 60_000 },
+    // Own local state: sharing it with the preview server would run every room's alarms twice.
+    { command: `CF_PERSIST=.wrangler/e2e-dev npx vite --port ${DEV_PORT} --strictPort`, url: DEV_URL, reuseExistingServer: !CI, timeout: 60_000 },
   ],
 });

@@ -1,5 +1,6 @@
 // Online message protocol (GDD §10.5). Client messages are zod-validated by the GameRoom;
-// server messages are typed here for the RemoteDriver (M6).
+// server messages are typed here for the RemoteDriver. Client code imports types only,
+// so zod stays out of the client bundle.
 
 import { z } from 'zod';
 import type { BotLevel } from '../engine/bots';
@@ -90,6 +91,8 @@ export interface RoomView {
   startingAt: number | null;
   /** Held seats during a match (only seats whose player dropped). */
   holds: HoldView[];
+  /** Seats whose player tapped Continue on this round summary. */
+  continued: Seat[];
 }
 
 export type ErrorCode =

@@ -15,6 +15,8 @@ export type HomeFooter =
 interface Props {
   nickname: string;
   botLevel: BotLevel;
+  /** Points to win the match (settings: match length). */
+  target?: number;
   footer?: HomeFooter;
   joinError?: string;
   initialCode?: string;
@@ -30,7 +32,7 @@ interface Props {
 }
 
 /** Screen 01. */
-export function HomeScreen({ nickname, botLevel, footer, joinError, initialCode = '', width = 390, height = 844, onPlayBots, onCreateRoom, onJoin, onSettings, onNickname, onHowToPlay, onFooter }: Props) {
+export function HomeScreen({ nickname, botLevel, target = 52, footer, joinError, initialCode = '', width = 390, height = 844, onPlayBots, onCreateRoom, onJoin, onSettings, onNickname, onHowToPlay, onFooter }: Props) {
   const { tutorial } = useFeatures();
   const [code, setCode] = useState(initialCode);
   const ready = code.length === ROOM_CODE_LENGTH;
@@ -57,7 +59,7 @@ export function HomeScreen({ nickname, botLevel, footer, joinError, initialCode 
           <span className="s A you" style={{ left: 88, top: 130 }}><SuitIcon suit="D" /></span>
         </div>
         <h1 className="wordmark">Chaugadi</h1>
-        <p className="tagline">Four players, two teams. Bid the Sar, call the Hukum, first to +52.</p>
+        <p className="tagline">Four players, two teams. Bid the Sar, call the Hukum, first to +{target}.</p>
       </section>
 
       <div className="home-acts">

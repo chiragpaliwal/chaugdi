@@ -5,6 +5,9 @@ export type ThemeSetting = 'dark' | 'light' | 'system';
 export type DeckSetting = '4' | '2';
 export type MotionSetting = 'reduced' | 'relaxed' | 'normal' | 'fast';
 export type BotLevel = 'easy' | 'medium' | 'hard';
+/** Short: first to +26. Standard: first to +52 (GDD §3.7 targetScore). */
+export type MatchLength = 'short' | 'standard';
+export const TARGET_SCORE: Record<MatchLength, number> = { short: 26, standard: 52 };
 
 export interface Settings {
   theme: ThemeSetting;
@@ -14,6 +17,7 @@ export interface Settings {
   haptics: boolean;
   motion: MotionSetting;
   botLevel: BotLevel;
+  matchLength: MatchLength;
   nickname: string;
 }
 
@@ -36,6 +40,8 @@ export function defaultSettings(): Settings {
     // Reduced is pre-selected when the OS asks for less motion (HANDOFF §5, Settings).
     motion: media('(prefers-reduced-motion: reduce)')?.matches ? 'reduced' : 'normal',
     botLevel: 'medium',
+    // Careful bots take about 45 rounds to reach +52, about 11 to reach +26.
+    matchLength: 'short',
     nickname: '',
   };
 }
@@ -62,7 +68,7 @@ function save(s: Settings) {
 
 const pick = (s: SettingsStore): Settings => ({
   theme: s.theme, deck: s.deck, cardSize: s.cardSize, sound: s.sound, haptics: s.haptics,
-  motion: s.motion, botLevel: s.botLevel, nickname: s.nickname,
+  motion: s.motion, botLevel: s.botLevel, matchLength: s.matchLength, nickname: s.nickname,
 });
 
 export const useSettings = create<SettingsStore>((set, get) => ({

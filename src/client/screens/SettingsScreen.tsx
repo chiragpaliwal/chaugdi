@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Segmented, Switch } from '../components/Controls';
 import { SuitIcon } from '../components/SuitIcon';
-import { useSettings, type BotLevel, type DeckSetting, type MotionSetting, type ThemeSetting } from '../stores/settings';
+import { TARGET_SCORE, useSettings, type BotLevel, type DeckSetting, type MatchLength, type MotionSetting, type ThemeSetting } from '../stores/settings';
 import type { CardSizeSetting } from '../table/geometry';
 
 const THEMES = [{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System' }] as const;
@@ -9,6 +9,8 @@ const DECKS = [{ value: '4', label: '4-colour' }, { value: '2', label: '2-colour
 const SIZES = [{ value: 'S', label: 'S' }, { value: 'M', label: 'M' }, { value: 'L', label: 'L' }] as const;
 const MOTIONS = [{ value: 'reduced', label: 'Reduced' }, { value: 'relaxed', label: 'Relaxed' }, { value: 'normal', label: 'Normal' }, { value: 'fast', label: 'Fast' }] as const;
 const BOTS = [{ value: 'easy', label: 'Easy' }, { value: 'medium', label: 'Medium' }, { value: 'hard', label: 'Hard' }] as const;
+const LENGTHS = [{ value: 'short', label: `+${TARGET_SCORE.short}` }, { value: 'standard', label: `+${TARGET_SCORE.standard}` }] as const;
+const LENGTH_NOTE: Record<MatchLength, string> = { short: 'Short match, about 20 minutes', standard: 'Full match, about an hour' };
 
 // Preview card per size: width, height, rank size, suit size (Settings board).
 const PREVIEW: Record<CardSizeSetting, [number, number, number, number]> = { S: [56, 78, 16, 20], M: [62, 87, 19, 24], L: [70, 98, 21, 26] };
@@ -18,7 +20,7 @@ const MOTION_NOTE: Record<MotionSetting, string> = {
   normal: 'Default timings from the motion spec.',
   fast: 'All motion 0.7× (deal stays ≤ 530 ms).',
 };
-const BOT_NOTE: Record<BotLevel, string> = { easy: 'Bids safely, makes mistakes', medium: 'Counts trumps, plays fair', hard: 'Tracks every card played' };
+const BOT_NOTE: Record<BotLevel, string> = { easy: 'Bids loosely, makes mistakes', medium: 'Counts trumps, plays fair', hard: 'Tracks every card played' };
 
 export const NICKNAME_MIN = 2;
 export const NICKNAME_MAX = 16;
@@ -72,6 +74,7 @@ export function SettingsScreen({ width = 390, height = 844, onBack }: { width?: 
       <span className="k-label set-k">Bots</span>
       <section className="set-grp">
         <div className="set-row"><span className="l">Difficulty<small>{BOT_NOTE[s.botLevel]}</small></span><Segmented label="Bot difficulty" options={BOTS} value={s.botLevel} onChange={(v: BotLevel) => s.set('botLevel', v)} /></div>
+        <div className="set-row"><span className="l">First to<small>{LENGTH_NOTE[s.matchLength]}</small></span><Segmented label="Match length" options={LENGTHS} value={s.matchLength} onChange={(v: MatchLength) => s.set('matchLength', v)} /></div>
       </section>
 
       <span className="k-label set-k">You</span>

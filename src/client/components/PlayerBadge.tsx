@@ -23,7 +23,6 @@ function badgeLabel(b: SeatBadge, name: string) {
 export function PlayerBadge({ seat: s, style }: Props) {
   const { chat } = useFeatures();
   const cls = ['seat', s.isMe ? 'me' : '', s.connected ? '' : 'off', s.turnProgress !== null ? 'turn' : ''].filter(Boolean).join(' ');
-  const name = s.isBot ? `${s.name} · bot` : s.name;
   return (
     <div className={cls} style={style}>
       <div className={`av ${s.team}`}>
@@ -43,7 +42,7 @@ export function PlayerBadge({ seat: s, style }: Props) {
         {s.isDealer && <span className="dl" aria-label="Dealer">D</span>}
         {chat && s.hasMessage && <span className="mk" aria-label="Sent a message">···</span>}
       </div>
-      <span className="nm">{name}</span>
+      <span className="nm" aria-label={s.isBot ? `Bot, ${s.name}` : undefined}>{s.isBot && <BotIcon small />}{s.name}</span>
       <div className="sr">
         {s.handCount !== null && (
           <span className="hn" aria-label={`${s.handCount} cards in hand`}>
@@ -61,9 +60,9 @@ export function PlayerBadge({ seat: s, style }: Props) {
   );
 }
 
-function BotIcon() {
+function BotIcon({ small }: { small?: boolean }) {
   return (
-    <svg className="bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" role="img" aria-label="Bot">
+    <svg className={small ? 'bm' : 'bot'} aria-hidden={small || undefined} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" role={small ? undefined : 'img'} aria-label={small ? undefined : 'Bot'}>
       <rect x="5" y="8" width="14" height="11" rx="3" />
       <path d="M12 4v4M9.5 13.5h.01M14.5 13.5h.01" />
     </svg>

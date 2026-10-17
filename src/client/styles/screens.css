@@ -221,3 +221,11 @@
 .toast .x { margin-left: auto; width: 32px; height: 32px; display: grid; place-items: center; color: var(--text-dim); flex: none; position: relative; }
 .toast .x::before { content: ''; position: absolute; inset: -6px; } /* 44 px hit area */
 .fan.held { opacity: .45; }
+
+/* Solo page overlays: menu and cards seen */
+.overlay { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; background: rgba(0,0,0,.45); animation: ov-in calc(200ms * var(--motion-scale)) ease-out both; }
+.overlay .sheet { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+.seen-row { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.seen-row > svg { width: 16px; height: 16px; flex: none; }
+.seen-row .mono { width: 18px; font-size: 12px; }
+@keyframes ov-in { from { opacity: 0; } }

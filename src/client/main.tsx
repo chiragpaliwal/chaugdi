@@ -1,10 +1,15 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
-import { bindSettingsToDocument } from './stores/settings';
+import { bindAudioUnlock, setVolume } from './audio/sounds';
+import { bindSettingsToDocument, useSettings } from './stores/settings';
 import './styles/index.css';
 
 bindSettingsToDocument();
+// Audio starts on the first gesture (GDD §12.3).
+bindAudioUnlock();
+setVolume(useSettings.getState().volume / 100);
+useSettings.subscribe((s) => setVolume(s.volume / 100));
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
 

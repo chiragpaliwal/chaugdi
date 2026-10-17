@@ -29,7 +29,10 @@ export interface AnimSnapshot {
 const CONTINUOUS = new Set<GameEvent['t']>(['dealt', 'trickWon']);
 const MAX_BEHIND = 2;
 
-interface Current { update: DriverUpdate; prev: PlayerView | null; index: number; startedAt: number; durations: number[] }
+interface Current { update: DriverUpdate; prev: PlayerView | null; index: number; startedAt: number; durations: number[]; fired: number }
+
+/** Called as each event starts playing (sound, haptics, announcements). Skipped-ahead updates fire nothing. */
+export type EventListener = (event: GameEvent, update: DriverUpdate) => void;
 
 export interface AnimQueueOptions {
   speed: () => MotionSpeed;
@@ -44,6 +47,7 @@ export class AnimQueue {
   private shown: DriverUpdate | null = null;
   private snapshot: AnimSnapshot | null = null;
   private listeners = new Set<() => void>();
+  private eventListeners = new Set<EventListener>();
   private looping = false;
   private unsubscribe: () => void;
 
@@ -59,9 +63,19 @@ export class AnimQueue {
 
   getSnapshot = (): AnimSnapshot => this.snapshot!;
 
+  onEvent = (cb: EventListener) => {
+    this.eventListeners.add(cb);
+    return () => { this.eventListeners.delete(cb); };
+  };
+
   destroy() {
     this.unsubscribe();
     this.listeners.clear();
+    this.eventListeners.clear();
+  }
+
+  private fire(update: DriverUpdate, from: number, to: number) {
+    for (let i = from; i < to; i++) for (const cb of this.eventListeners) cb(update.events[i]!, update);
   }
 
   private now() { return this.opts.now?.() ?? performance.now(); }
@@ -85,11 +99,12 @@ export class AnimQueue {
       const speed = this.opts.speed();
       const durations = update.events.map((e) => scaledEventMs(e, speed));
       if (durations.some((d) => d > 0)) {
-        this.current = { update, prev: this.shown?.view ?? null, index: 0, startedAt: this.now(), durations };
+        this.current = { update, prev: this.shown?.view ?? null, index: 0, startedAt: this.now(), durations, fired: 0 };
         this.skipZero();
         if (this.current) { this.emit(); this.loop(); return; }
         continue;
       }
+      this.fire(update, 0, update.events.length);
       this.shown = update;
     }
     this.current = null;
@@ -100,6 +115,9 @@ export class AnimQueue {
   private skipZero() {
     const c = this.current!;
     while (c.index < c.durations.length && c.durations[c.index] === 0) c.index++;
+    const upTo = Math.min(c.index + 1, c.durations.length);
+    this.fire(c.update, c.fired, upTo);
+    c.fired = upTo;
     if (c.index >= c.durations.length) { this.shown = c.update; this.current = null; }
   }
 

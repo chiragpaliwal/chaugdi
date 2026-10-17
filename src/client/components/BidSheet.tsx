@@ -37,12 +37,28 @@ export function BidSheet(props: BidSheetProps) {
 
   useEffect(() => {
     if (passed) return;
+    const focusBid = (n: number) => document.getElementById(`bid-${n}`)?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      const inGrid = e.target instanceof Element && !!e.target.closest('.bid-grid');
       const n = KEY_TO_BID[e.key];
-      if (n !== undefined && n >= min) onSelect(n);
+      if (n !== undefined && n >= min) { onSelect(n); if (inGrid) focusBid(n); }
       else if (e.key === 'p' || e.key === 'P') onPass();
-      else if (e.key === 'Enter' && selected !== null) onBid(selected);
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const up = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+        const cur = selected ?? (up ? min - 1 : 14);
+        const next = Math.min(13, Math.max(min, cur + (up ? 1 : -1)));
+        onSelect(next);
+        if (inGrid) focusBid(next);
+      } else if (e.key === 'Enter') {
+        // Other buttons (Pass, the menu) act through their own click.
+        if (e.target instanceof HTMLButtonElement && !inGrid) return;
+        const focused = inGrid ? Number((e.target as Element).closest('.bid-num')?.getAttribute('data-bid')) : NaN;
+        const value = focused >= min ? focused : selected;
+        if (value !== null && value >= min) { e.preventDefault(); onBid(value); }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -67,7 +83,8 @@ export function BidSheet(props: BidSheetProps) {
             ? `${n}, not allowed: must beat ${high?.bid}`
             : n === 13 ? '13, Kot: win all 13 to win the match' : `${n}: make it for plus ${n}, miss it for minus ${2 * n}`;
           return (
-            <button key={n} className={cls} role="radio" aria-checked={on} aria-disabled={lock || passed || undefined} aria-label={aria}
+            <button key={n} id={`bid-${n}`} data-bid={n} className={cls} role="radio" aria-checked={on}
+              tabIndex={on || (selected === null && n === min) ? 0 : -1} aria-disabled={lock || passed || undefined} aria-label={aria}
               onClick={() => { if (!lock && !passed) onSelect(n); }}>
               <span className="n">{n}</span>
               <span className="x">{lock ? 'taken' : n === 13 ? 'Kot' : `+${n} · −${2 * n}`}</span>

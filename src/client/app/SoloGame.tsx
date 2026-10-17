@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { suitOf, type CardId, type Suit } from '../../engine/types';
 import { DISPLAY_SUIT_ORDER } from '../../engine/cards';
+import { Feedback } from '../audio/Feedback';
 import { Card } from '../components/Card';
 import { cardLabel, SUIT_NAME } from '../components/cardText';
 import { SuitIcon } from '../components/SuitIcon';
@@ -101,6 +102,7 @@ export function MatchTable({ width, height, onHome, onSettings, session, snap, p
   return (
     <div style={{ position: 'relative', ...size }}>
       <GameMenuProvider value={() => setOverlay('menu')}>{body}</GameMenuProvider>
+      <Feedback anim={session.anim} />
       {children}
       {overlay === 'menu' && (
         <Overlay title="Menu" onClose={() => setOverlay(null)}>

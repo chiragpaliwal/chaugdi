@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { CardId, Suit } from '../../engine/types';
 import { FAN_STYLES, fanHeight, fanLayout, LIFT_LEGAL, LIFT_SELECTED, type FanStyleName } from '../table/geometry';
 import { Card } from './Card';
@@ -37,6 +37,13 @@ interface Props {
   style?: React.CSSProperties;
 }
 
+/** Keys typed into fields, radio groups or an open dialog are not game keys. */
+export function ignoreKeysFrom(target: EventTarget | null): boolean {
+  if (document.querySelector('[aria-modal="true"]')) return true;
+  if (!(target instanceof Element)) return false;
+  return target.matches('input, textarea, select, [contenteditable="true"]') || !!target.closest('[role="radiogroup"]');
+}
+
 /**
  * Tap to select, tap again to play (HANDOFF §6). No drag. Illegal cards stay focusable
  * with aria-disabled so the tap can explain why (HANDOFF §9).
@@ -56,24 +63,39 @@ export function HandFan({ cards, width, cardWidth, hukum, yourTurn = false, sele
     else onSelect?.(c.card);
   };
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!yourTurn || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
-    const legal = cards.filter((c) => c.legal !== false);
-    if (!legal.length) return;
-    e.preventDefault();
-    const at = legal.findIndex((c) => c.card === selected);
-    const step = e.key === 'ArrowRight' ? 1 : -1;
-    const next = legal[at < 0 ? (step > 0 ? 0 : legal.length - 1) : (at + step + legal.length) % legal.length]!;
-    onSelect?.(next.card);
-    document.getElementById(`hand-${next.card}`)?.focus();
-  };
+  // Desktop play (GDD §11.4): ←/→ pick a legal card wherever focus is, Enter plays it.
+  const keys = useRef({ cards, selected, onSelect, onPlay });
+  keys.current = { cards, selected, onSelect, onPlay };
+  const live = yourTurn && !!onSelect;
+  useEffect(() => {
+    if (!live) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || ignoreKeysFrom(e.target)) return;
+      const { cards, selected, onSelect, onPlay } = keys.current;
+      if (e.key === 'Enter') {
+        // A focused card button plays through its own click.
+        if (selected && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); onPlay?.(selected); }
+        return;
+      }
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const legal = cards.filter((c) => c.legal !== false);
+      if (!legal.length) return;
+      e.preventDefault();
+      const at = legal.findIndex((c) => c.card === selected);
+      const step = e.key === 'ArrowRight' ? 1 : -1;
+      const next = legal[at < 0 ? (step > 0 ? 0 : legal.length - 1) : (at + step + legal.length) % legal.length]!;
+      onSelect?.(next.card);
+      document.getElementById(`hand-${next.card}`)?.focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [live]);
 
   return (
     <section
       className={['fan', className].filter(Boolean).join(' ')}
       style={{ width, height: height ?? fanHeight(total), ...style }}
       aria-label={`Your hand, ${total} cards in ${rows}${faceDown ? `, ${faceDown} still face-down` : ''}`}
-      onKeyDown={onKeyDown}
     >
       {cards.map((c, i) => {
         const slot = layout[i]!;

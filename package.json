@@ -10,7 +10,8 @@
     "typecheck": "tsc -b tsconfig.json tsconfig.server.json",
     "test": "vitest run",
     "visual": "node e2e/visual.mjs",
-    "e2e": "node e2e/interactions.mjs",
+    "e2e": "npm run build && npm run db:migrate && playwright test",
+    "e2e:ui": "playwright test --ui",
     "deploy": "npm run build && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply chaugadi --local",
     "cf-typegen": "wrangler types src/server/worker-configuration.d.ts",
@@ -26,8 +27,10 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@cloudflare/vite-plugin": "^1.64.0",
     "@cloudflare/workers-types": "^5.20261016.1",
+    "@playwright/test": "^1.64.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.1.2",

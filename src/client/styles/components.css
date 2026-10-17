@@ -145,7 +145,7 @@
 .seat .hn svg { width: 12px; height: 12px; }
 .seat .bdr { height: 14px; padding: 0 5px; border-radius: 7px; background: var(--text); color: var(--bg); font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; display: flex; align-items: center; }
 .seat .stx { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); }
-.seat .stx.hot { color: var(--amber); } .seat .stx.mute { color: var(--text-faint); } .seat .stx.bad { color: var(--coral); } .seat .stx.ok { color: var(--blue-ring); }
+.seat .stx.hot { color: var(--amber-ink); } .seat .stx.mute { color: var(--text-faint); } .seat .stx.bad { color: var(--coral); } .seat .stx.ok { color: var(--blue-ring); }
 
 /* --------------------------------------------------------------- RacePill */
 .pill { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; z-index: 1; }

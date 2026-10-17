@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Segmented, Switch } from '../components/Controls';
+import { playCue } from '../audio/sounds';
 import { SuitIcon } from '../components/SuitIcon';
 import { TARGET_SCORE, useSettings, type BotLevel, type DeckSetting, type MatchLength, type MotionSetting, type ThemeSetting } from '../stores/settings';
 import type { CardSizeSetting } from '../table/geometry';
@@ -66,6 +67,14 @@ export function SettingsScreen({ width = 390, height = 844, onBack }: { width?: 
       <span className="k-label set-k">Feel</span>
       <section className="set-grp">
         <div className="set-row"><span className="l">Sound</span><Switch label="Sound" checked={s.sound} onChange={(v) => s.set('sound', v)} /></div>
+        {s.sound && (
+          <div className="set-row">
+            <span className="l">Volume</span>
+            <input className="set-range" type="range" min={0} max={100} step={5} aria-label="Volume" aria-valuetext={`${s.volume} percent`}
+              value={s.volume} onChange={(e) => s.set('volume', Number(e.target.value))} onPointerUp={() => playCue('cardPlace')} onKeyUp={() => playCue('cardPlace')} />
+            <span className="mono set-range-v" aria-hidden="true">{s.volume}</span>
+          </div>
+        )}
         <div className="set-row"><span className="l">Haptics<small>Your turn, tricks won, contract result</small></span><Switch label="Haptics" checked={s.haptics} onChange={(v) => s.set('haptics', v)} /></div>
         <div className="set-row stack"><span className="l">Animation</span><Segmented label="Animation speed" full options={MOTIONS} value={s.motion} onChange={(v: MotionSetting) => s.set('motion', v)} /></div>
         <p className="set-note">{MOTION_NOTE[s.motion]}</p>

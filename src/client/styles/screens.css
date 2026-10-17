@@ -88,6 +88,7 @@
 .suit-tile svg.g { width: 40px; height: 40px; flex: none; }
 .suit-tile .nm2 { font-size: 16px; font-weight: 600; display: block; }
 .suit-tile .f { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); display: block; margin-top: 3px; }
+[data-theme="light"] .suit-tile.on .f { color: var(--text-2); } /* 4.3:1 on the selected tile otherwise (M7 a11y pass) */
 .suit-tile.on { background: var(--surface-3); box-shadow: inset 0 0 0 2px var(--amber); }
 .suit-tile .ck { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; border-radius: 50%; background: var(--amber); color: var(--on-amber); display: grid; place-items: center; }
 .suit-tile .ck svg { width: 12px; height: 12px; }
@@ -125,8 +126,8 @@
 /* --------------------------------------------------------- round summary */
 .result-scr { position: relative; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); color: var(--text); padding: 22px 16px 16px; }
 .result-scr h1 { margin: 6px 0 0; font-size: 40px; line-height: 1; font-weight: 800; letter-spacing: -.02em; position: relative; }
-.result-scr h1 .bad { color: var(--coral); display: block; }
-.result-scr h1 .ok { color: var(--blue); display: block; }
+.result-scr h1 .bad { color: var(--coral-ink); display: block; }
+.result-scr h1 .ok { color: var(--blue-ink); display: block; }
 .result-scr .story { margin: 10px 0 0; font-size: 14px; line-height: 1.4; color: var(--text-2); position: relative; }
 .rs-card { margin-top: 14px; border-radius: 16px; background: var(--surface-1); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .rs-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }

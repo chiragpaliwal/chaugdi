@@ -146,4 +146,23 @@ describe('AnimQueue', () => {
     expect(q.getSnapshot().view.roundNo).toBe(4);
     expect(q.getSnapshot().busy).toBe(false);
   });
+
+  it('fires each event as it starts, including zero-length ones, in order', () => {
+    let now = 0;
+    const frames: (() => void)[] = [];
+    const d = fakeDriver();
+    const q = new AnimQueue(d, { speed: () => 'normal', now: () => now, frame: (f) => frames.push(f) });
+    const seen: string[] = [];
+    q.onEvent((e) => seen.push(e.t));
+    d.push({ view: view(1), players, animBudgetMs: 0, events: [
+      { t: 'roundDecided', outcome: 'MADE', afterTrick: 9 },
+      { t: 'handsRevealed', hands: { 0: [], 1: [], 2: [], 3: [] } },
+      { t: 'scored', team: 'A', delta: 7, ledger: 7 },
+    ] });
+    expect(seen).toEqual(['roundDecided']);
+    now = 1000; frames.shift()!();
+    expect(seen).toEqual(['roundDecided', 'handsRevealed', 'scored']);
+    d.push({ view: view(2), players, animBudgetMs: 0, events: [{ t: 'dealerStays', seat: 1 }] });
+    expect(seen.at(-1)).toBe('dealerStays');
+  });
 });

@@ -15,9 +15,18 @@
   --notch: #1B1D24;
   --hand-icon-back: #3A404B;
   --hand-icon-front: #6B717D;
+  /* Accessibility pass (M7): the design's faint text is 3.9:1 on --bg and 3.6:1 on
+     --surface-1; WCAG AA needs 4.5:1 for these small labels. Status colours used as
+     text get an "ink" that passes in both themes. */
+  --text-faint: #858B97;
+  --blue-ink: var(--blue);
+  --coral-ink: var(--coral);
 }
 
 [data-theme="light"] {
+  --text-faint: #696E77;
+  --blue-ink: #1D6CA6;
+  --coral-ink: #B83A2E;
   --felt-ring-2: #E6E4DD;
   --avatar-ink: #15171C;
   --sar-line: #C4C1B8;

@@ -14,6 +14,8 @@ export interface Settings {
   deck: DeckSetting;
   cardSize: CardSizeSetting;
   sound: boolean;
+  /** Master volume 0–100 (GDD §12.3). */
+  volume: number;
   haptics: boolean;
   motion: MotionSetting;
   botLevel: BotLevel;
@@ -36,6 +38,7 @@ export function defaultSettings(): Settings {
     deck: '4',
     cardSize: 'M',
     sound: true,
+    volume: 70,
     haptics: true,
     // Reduced is pre-selected when the OS asks for less motion (HANDOFF §5, Settings).
     motion: media('(prefers-reduced-motion: reduce)')?.matches ? 'reduced' : 'normal',
@@ -67,7 +70,7 @@ function save(s: Settings) {
 }
 
 const pick = (s: SettingsStore): Settings => ({
-  theme: s.theme, deck: s.deck, cardSize: s.cardSize, sound: s.sound, haptics: s.haptics,
+  theme: s.theme, deck: s.deck, cardSize: s.cardSize, sound: s.sound, volume: s.volume, haptics: s.haptics,
   motion: s.motion, botLevel: s.botLevel, matchLength: s.matchLength, nickname: s.nickname,
 });
 

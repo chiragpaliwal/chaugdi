@@ -32,6 +32,8 @@ const CHECKS = [
   // step 5: menus
   ...['01-home', '02-settings', '03-lobby', '03b-lobby-full', '03c-lobby-starting'].map((id) => ({ name: id, route: id, w: 390, h: 844, ref: id, step: 5 })),
   ...['01-home~app', '01-home-resume~app', '03-lobby-guest~app', '13-vote~app', '13-vote-locked~app'].map((id) => ({ name: id, route: id, w: 390, h: 844, step: 5 })),
+  // milestone 4: How to Play coach marks
+  ...['a', 'b', 'c', 'd', 'e', 'f'].map((l, i) => `04${l}-how-to-play-step-${i + 1}`).map((id) => ({ name: id, route: id, w: 390, h: 844, ref: id, step: 'tutorial' })),
   // the app as it ships (chat off): screenshots for review
   ...['05-dealing-5', '10-your-turn-13-cards', '11-waiting-cut', '12-trick-resolving'].map((id) => ({ name: `${id}~app`, route: `${id}~app`, w: 390, h: 844, step: 4 })),
 ];

@@ -14,10 +14,13 @@ interface LedgerProps {
   names: string;
   /** Under 375 px wide: swatch + value only. */
   compact?: boolean;
+  /** Replaces the score, e.g. "Practice hand" (04). */
+  label?: string;
 }
 
 /** Always shows the leading team as "+N"; "Level" at 0. */
-export function LedgerPill({ team, value, names, compact }: LedgerProps) {
+export function LedgerPill({ team, value, names, compact, label }: LedgerProps) {
+  if (label) return <div className="ledger-pill" aria-label={label}><i className="swatch A" />{label}</div>;
   if (team === null || value === 0) {
     return <div className="ledger-pill" aria-label="Ledger: level"><span className="v">Level</span></div>;
   }

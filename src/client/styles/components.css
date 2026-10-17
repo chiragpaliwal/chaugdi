@@ -202,3 +202,22 @@
   :root:not([data-motion="normal"]):not([data-motion="fast"]):not([data-motion="relaxed"]) .card.is-thinking { animation: none; }
 }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* CoachMark (HANDOFF §4, screens 04a–f). Ivory card in both themes. */
+.coach-layer { position: absolute; inset: 0; z-index: 40; overflow: hidden; }
+.coach-layer.pass { pointer-events: none; }
+.coach-layer.pass .coach { pointer-events: auto; }
+.coach-spot { position: absolute; box-shadow: 0 0 0 2px var(--amber), 0 0 0 2000px rgba(5, 6, 8, .74); pointer-events: none; transition: all calc(280ms * var(--motion-scale)) var(--ease-travel); }
+.coach-spot.none { left: 50%; top: 50%; width: 0; height: 0; box-shadow: 0 0 0 2px transparent, 0 0 0 2000px rgba(5, 6, 8, .74); }
+.coach { position: absolute; left: 16px; right: 16px; z-index: 41; border-radius: 16px; background: #EEF0F3; color: #0E1014; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 14px 34px rgba(0, 0, 0, .5); transition: top calc(280ms * var(--motion-scale)) var(--ease-travel); }
+.coach .st { font-family: 'DM Mono', monospace; font-size: 11px; color: #5D636E; }
+.coach h2 { margin: 0; font-size: 18px; font-weight: 800; }
+.coach p { margin: 0; font-size: 14px; line-height: 1.4; color: #2A2E36; }
+.coach-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.coach-row .pd { display: flex; gap: 4px; flex: 1; }
+.coach-row .pd i { width: 6px; height: 6px; border-radius: 50%; background: #C4C1B8; }
+.coach-row .pd i.on { background: #0E1014; width: 16px; border-radius: 3px; }
+.coach .cb { height: 44px; padding: 0 16px; border-radius: 12px; font-size: 15px; font-weight: 600; }
+.coach .cb.bk { color: #3A3F48; padding: 0 10px; }
+.coach .cb.nx { background: var(--amber); color: var(--on-amber); }
+.coach .cb:focus-visible { outline: 2px solid #0E1014; outline-offset: 2px; }

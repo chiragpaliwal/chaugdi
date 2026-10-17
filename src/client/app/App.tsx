@@ -9,6 +9,7 @@ import { TARGET_SCORE, useSettings } from '../stores/settings';
 import { newRoomCode, useDemoLobby } from './demoLobby';
 import { useRoute, type Route } from './router';
 import { SoloGame } from './SoloGame';
+import { Tutorial } from './Tutorial';
 
 const DevScreen = import.meta.env.DEV ? lazy(() => import('../dev/DevScreen')) : null;
 
@@ -37,6 +38,8 @@ function Page({ route, go, size }: { route: Route; go: (r: Route, replace?: bool
       return <Room code={route.code} go={go} size={size} nickname={nickname} botLevel={botLevel} />;
     case 'play':
       return <SoloGame {...size} onHome={() => go({ name: 'home' })} onSettings={() => go({ name: 'settings' })} />;
+    case 'learn':
+      return <Tutorial {...size} onExit={() => go({ name: 'home' }, true)} />;
     default:
       return <Home size={size} go={go} nickname={nickname} botLevel={botLevel} />;
   }
@@ -72,6 +75,7 @@ function Home({ size, go, nickname, botLevel }: { size: { width: number; height:
       onJoin={(code) => go({ name: 'room', code })}
       onSettings={() => go({ name: 'settings' })}
       onNickname={() => go({ name: 'settings' })}
+      onHowToPlay={() => go({ name: 'learn' })}
     />
   );
 }

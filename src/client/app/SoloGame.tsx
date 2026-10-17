@@ -6,7 +6,8 @@ import { DISPLAY_SUIT_ORDER } from '../../engine/cards';
 import { Card } from '../components/Card';
 import { cardLabel, SUIT_NAME } from '../components/cardText';
 import { SuitIcon } from '../components/SuitIcon';
-import { useAnim, useSoloSession } from '../drivers/session';
+import type { AnimSnapshot } from '../anim/queue';
+import { useAnim, useSoloSession, type SoloSession } from '../drivers/session';
 import { AuctionScreen } from '../screens/AuctionScreen';
 import { DealFiveScreen, HukumRevealScreen } from '../screens/DealScreens';
 import { HukumScreen } from '../screens/HukumScreen';
@@ -22,16 +23,33 @@ interface Props {
   width: number;
   height: number;
   onHome: () => void;
-  onSettings: () => void;
+  onSettings?: () => void;
 }
 
 const PEEK_MS = 2500;
 
-export function SoloGame({ width, height, onHome, onSettings }: Props) {
+export function SoloGame(props: Props) {
   const level = useSettings((s) => s.botLevel);
-  const cardSize = useSettings((s) => s.cardSize);
   const session = useSoloSession(level);
   const snap = useAnim(session);
+  return <MatchTable {...props} session={session} snap={snap} />;
+}
+
+interface MatchTableProps extends Props {
+  session: SoloSession;
+  snap: AnimSnapshot;
+  /** Practice hand: "Practice hand" in the ledger pill, no summary auto-advance. */
+  practice?: boolean;
+  /** Leaving the round summary or match result (tutorial: the end of the hand). */
+  onFinish?: () => void;
+  homeLabel?: string;
+  /** Drawn over the table (coach marks). */
+  children?: React.ReactNode;
+}
+
+/** The table for a local match: LocalDriver → animation queue → adapter → screens. */
+export function MatchTable({ width, height, onHome, onSettings, session, snap, practice, onFinish, homeLabel = 'Home · the match is saved', children }: MatchTableProps) {
+  const cardSize = useSettings((s) => s.cardSize);
   const send = session.driver.send.bind(session.driver);
   const [overlay, setOverlay] = useState<'menu' | 'seen' | null>(null);
   const [peek, setPeek] = useState(false);
@@ -39,16 +57,17 @@ export function SoloGame({ width, height, onHome, onSettings }: Props) {
   useEffect(() => () => window.clearTimeout(peekTimer.current), []);
 
   const screen = toTableView({ ...snap, width, peek });
+  if (practice && 'hud' in screen.v) screen.v.hud = { ...screen.v.hud, ledger: { ...screen.v.hud.ledger, label: 'Practice hand' } };
   const size = { width, height };
   const { view } = snap;
 
   // Round summary auto-advances after 6 s (GDD §5).
   const summaryKey = screen.kind === 'summary' ? view.roundNo : null;
   useEffect(() => {
-    if (summaryKey === null || overlay) return;
+    if (summaryKey === null || overlay || practice) return;
     const t = window.setTimeout(() => session.driver.send({ type: 'continue' }), MOTION.summarySeconds * 1000);
     return () => window.clearTimeout(t);
-  }, [summaryKey, overlay, session]);
+  }, [summaryKey, overlay, practice, session]);
 
   const showPeek = () => {
     setPeek(true);
@@ -72,21 +91,22 @@ export function SoloGame({ width, height, onHome, onSettings }: Props) {
         onLastTrick={showPeek} onCardsSeen={() => setOverlay('seen')} />;
       break;
     case 'summary':
-      body = <RoundSummaryScreen key={`s${view.roundNo}`} v={screen.v} {...size} onReady={() => send({ type: 'continue' })} />;
+      body = <RoundSummaryScreen key={`s${view.roundNo}`} v={screen.v} {...size} onReady={onFinish ?? (() => send({ type: 'continue' }))} />;
       break;
     case 'result':
-      body = <MatchResultScreen v={screen.v} {...size} onHome={onHome} onRematch={() => send({ type: 'rematch' })} />;
+      body = <MatchResultScreen v={screen.v} {...size} onHome={onFinish ?? onHome} onRematch={onFinish ?? (() => send({ type: 'rematch' }))} />;
       break;
   }
 
   return (
     <div style={{ position: 'relative', ...size }}>
       <GameMenuProvider value={() => setOverlay('menu')}>{body}</GameMenuProvider>
+      {children}
       {overlay === 'menu' && (
         <Overlay title="Menu" onClose={() => setOverlay(null)}>
           <button className="btn-secondary" onClick={() => setOverlay(null)}>Back to the table</button>
-          <button className="btn-secondary" onClick={onSettings}>Settings</button>
-          <button className="btn-secondary" onClick={onHome}>Home · the match is saved</button>
+          {onSettings && <button className="btn-secondary" onClick={onSettings}>Settings</button>}
+          <button className="btn-secondary" onClick={onHome}>{homeLabel}</button>
         </Overlay>
       )}
       {overlay === 'seen' && <CardsSeen played={view.playedCards} hukum={view.trump} onClose={() => setOverlay(null)} />}

@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { EXTEND_BY, type PauseVoteView } from '../components/PauseVote';
 import { HomeScreen } from '../screens/HomeScreen';
+import { Tutorial } from '../app/Tutorial';
 import { LobbyScreen, type LobbyView } from '../screens/LobbyScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { defaultSettings, useSettings } from '../stores/settings';
@@ -349,6 +350,10 @@ export const SCREEN_RENDERS = {
   '14-round-summary': () => <RoundSummaryScreen v={roundSummary} />,
   '15-match-result': () => <MatchResultScreen v={matchResult} />,
   '15b-match-result-kot': () => <MatchResultScreen v={matchResultKot} />,
+  ...Object.fromEntries(['a', 'b', 'c', 'd', 'e', 'f'].map((l, i) => [
+    `04${l}-how-to-play-step-${i + 1}`,
+    () => <Tutorial width={390} height={844} initialStep={i} onExit={() => window.history.back()} />,
+  ])),
   '01-home': () => <HomeScreen nickname="Kabir" botLevel="medium" initialCode="K" footer={{ kind: 'last', team: 'A', names: 'You & Asha', value: 52 }} />,
   '01-home-resume': () => <HomeScreen nickname="Kabir" botLevel="hard" footer={{ kind: 'resume', team: 'A', names: 'You & Asha', value: 17, round: 4 }} />,
   '02-settings': () => <SettingsReference />,

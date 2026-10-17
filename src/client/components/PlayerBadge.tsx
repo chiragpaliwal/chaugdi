@@ -24,7 +24,7 @@ export function PlayerBadge({ seat: s, style }: Props) {
   const { chat } = useFeatures();
   const cls = ['seat', s.isMe ? 'me' : '', s.connected ? '' : 'off', s.turnProgress !== null ? 'turn' : ''].filter(Boolean).join(' ');
   return (
-    <div className={cls} style={style}>
+    <div className={cls} style={style} data-seat={s.seat}>
       <div className={`av ${s.team}`}>
         {s.turnProgress !== null && (
           <span

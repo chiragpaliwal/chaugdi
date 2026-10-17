@@ -2,11 +2,11 @@
 // seats 1–3. Bots move only after the last update's animation budget plus think time,
 // the same pacing rule the server follows (GDD §10.3, §9.5).
 
-import { botName, intentToAction, thinkTimeMs, type BotLevel } from '../../engine/bots';
+import { botName, intentToAction, thinkTimeMs, type BotLevel, type Intent } from '../../engine/bots';
 import { apply, createLobby, legalActions, type Applied } from '../../engine/reducer';
 import { randomSeed, rngFrom } from '../../engine/rng';
 import { viewFor } from '../../engine/view';
-import { DEFAULT_CONFIG, teamOf, type Action, type GameEvent, type MatchState, type Seat } from '../../engine/types';
+import { DEFAULT_CONFIG, teamOf, type Action, type GameEvent, type MatchState, type PlayerView, type Seat } from '../../engine/types';
 import { animBudgetMs, type MotionSpeed } from '../../shared/constants';
 import { createBotRunner, type BotRunner } from './bots';
 import type { LastResult, SoloSave } from './save';
@@ -20,8 +20,14 @@ export interface LocalDriverOptions {
   /** Points to win a new match (settings: match length). Saved matches keep theirs. */
   targetScore?: number;
   saved?: SoloSave | null;
-  /** Fixed match seed (tests). New matches use a random one. */
+  /** Fixed match seed (tests, tutorial). New matches use a random one. */
   seed?: string;
+  /** Fixed first dealer (tutorial). Otherwise picked from the seed. */
+  dealer?: Seat;
+  /** Fixed names (tutorial). Otherwise drawn from the bot name pool. */
+  players?: Players;
+  /** Scripted bot moves (tutorial): a non-null intent replaces the bot's own choice. */
+  script?: (view: PlayerView) => Intent | null;
   bots?: BotRunner;
   speed?: () => MotionSpeed;
   persist?: (s: SoloSave) => void;
@@ -55,6 +61,7 @@ export class LocalDriver implements GameDriver {
   private last: DriverUpdate;
   private timer: unknown = null;
   private paused = false;
+  private held = false;
   private destroyed = false;
 
   constructor(opts: LocalDriverOptions) {
@@ -68,9 +75,9 @@ export class LocalDriver implements GameDriver {
       this.seq = opts.saved.seq;
     } else {
       const seed = opts.seed ?? randomSeed();
-      const started = apply(createLobby({ ...DEFAULT_CONFIG, targetScore: opts.targetScore ?? DEFAULT_CONFIG.targetScore }), { type: 'START_MATCH', seed, dealer: randomDealer(seed) });
+      const started = apply(createLobby({ ...DEFAULT_CONFIG, targetScore: opts.targetScore ?? DEFAULT_CONFIG.targetScore }), { type: 'START_MATCH', seed, dealer: opts.dealer ?? randomDealer(seed) });
       this.state = started.state;
-      this.players = soloPlayers(seed);
+      this.players = opts.players ?? soloPlayers(seed);
       this.seq = 0;
       events = started.events;
     }
@@ -105,6 +112,14 @@ export class LocalDriver implements GameDriver {
     } catch {
       // An illegal intent changes nothing; the UI only offers legal ones.
     }
+  }
+
+  /** Stop bots from moving (a coach mark is open) until released. */
+  hold(on: boolean): void {
+    if (this.held === on) return;
+    this.held = on;
+    if (on) this.clearTimer();
+    else this.schedule(0);
   }
 
   destroy(): void {
@@ -147,7 +162,7 @@ export class LocalDriver implements GameDriver {
 
   private schedule(budgetMs: number) {
     this.clearTimer();
-    if (this.paused || this.destroyed || !LIVE.has(this.state.phase)) return;
+    if (this.paused || this.held || this.destroyed || !LIVE.has(this.state.phase)) return;
     const seat = this.state.round?.turn;
     if (seat === null || seat === undefined || seat === YOU) return;
     const view = viewFor(this.state, seat);
@@ -167,13 +182,13 @@ export class LocalDriver implements GameDriver {
   private async runBot(seat: Seat) {
     const seq = this.seq;
     const view = viewFor(this.state, seat);
-    let intent = null;
+    let intent = this.opts.script?.(view) ?? null;
     try {
-      intent = await this.bots.decide(view, this.level, `${this.state.seed}:bot:${seq}`);
+      intent ??= await this.bots.decide(view, this.level, `${this.state.seed}:bot:${seq}`);
     } catch {
       intent = null;
     }
-    if (this.destroyed || this.paused || seq !== this.seq || this.state.round?.turn !== seat) return;
+    if (this.destroyed || this.paused || this.held || seq !== this.seq || this.state.round?.turn !== seat) return;
     try {
       if (!intent) throw new Error('no move');
       this.commit(apply(this.state, intentToAction(intent, seat)));

@@ -2,7 +2,7 @@
 
 import { legalBidValues } from '../auction';
 import { partnerOf, SUITS, type Action, type CardId, type PlayerView, type Seat, type Suit } from '../types';
-import { chooseBid, evaluateHand } from './bid';
+import { estimateOdds, evaluateHand, pickBid, type BidPolicy } from './bid';
 import { contextFromView } from './memory';
 import { bidOdds, hardPlay, type Budget } from './mc';
 import { mediumPlay } from './play-medium';
@@ -25,7 +25,20 @@ export interface BotOptions {
   bidSamples?: number;
   /** Hard: fixed sample count, for deterministic tests. */
   samples?: number;
+  /** Override the level's bidding policy (tuning). */
+  bidPolicy?: BidPolicy;
 }
+
+/**
+ * Bidding policy per level, from the self-play sweep in calibrate.test.ts. 2/3 is the
+ * break-even for +b / −2b and beat every looser policy; jump bids lost at every tau.
+ * Easy bids loosely on purpose: shorter matches and beatable.
+ */
+export const BID_POLICY: Record<BotLevel, BidPolicy> = {
+  easy: { tau: 0.5, jump: false },
+  medium: { tau: 2 / 3, jump: false },
+  hard: { tau: 2 / 3, jump: false },
+};
 
 const defaultNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -55,22 +68,21 @@ function decideBid(view: PlayerView, level: BotLevel, opts: BotOptions): Intent 
   if (!legalBidValues(view.auction, view.config).length) return { type: 'pass' };
   const partnerHigh = high !== null && high.seat === partnerOf(view.you);
 
+  const policy = opts.bidPolicy ?? BID_POLICY[level];
   if (level === 'hard') {
     const odds = bestOdds(view, opts);
     if (partnerHigh) {
       const raise = high.value + 1;
       return raise <= maxBid && (odds[raise] ?? 0) >= 0.75 ? { type: 'bid', value: raise } : { type: 'pass' };
     }
-    let maxWilling = 0;
-    for (let b = minBid; b <= maxBid; b++) if ((odds[b] ?? 0) >= 0.7) maxWilling = b;
-    const v = chooseBid(maxWilling, high?.value ?? null, minBid, maxBid);
+    const v = pickBid(odds, high?.value ?? null, policy, minBid, maxBid);
     return v === null ? { type: 'pass' } : { type: 'bid', value: v };
   }
 
   if (partnerHigh) return { type: 'pass' };
-  const aggression = level === 'easy' ? Math.floor(opts.rng() * 3) - 1 : 0;
-  const maxWilling = Math.floor(evaluateHand(view.hand).best + aggression);
-  const v = chooseBid(maxWilling, high?.value ?? null, minBid, maxBid);
+  // Easy misjudges its hand by up to a trick either way (GDD §9.3).
+  const shift = level === 'easy' ? Math.floor(opts.rng() * 3) - 1 : 0;
+  const v = pickBid(estimateOdds(evaluateHand(view.hand).best, shift), high?.value ?? null, policy, minBid, maxBid);
   return v === null ? { type: 'pass' } : { type: 'bid', value: v };
 }
 

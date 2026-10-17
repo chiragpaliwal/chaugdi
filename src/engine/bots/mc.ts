@@ -171,3 +171,14 @@ export function bidOdds(view: PlayerView, trump: Suit, samples: number, rng: () 
   }
   return atLeast.map((n) => n / samples);
 }
+
+/** Tricks the declarer's team takes over all 13 tricks, Medium play for every seat (calibration). */
+export function fullRoundTricks(hands: Record<Seat, CardId[]>, trump: Suit, declarer: Seat): number {
+  const contract: Contract = { seat: declarer, team: teamOf(declarer), bid: 7, forced: false };
+  const sim: Sim = {
+    hands: { 0: [...hands[0]], 1: [...hands[1]], 2: [...hands[2]], 3: [...hands[3]] },
+    trump, contract, plays: [], turn: declarer, played: new Set(), voids: [0, 0, 0, 0], tricksWon: { A: 0, B: 0 }, tricks: 0,
+  };
+  playout(sim, true);
+  return sim.tricksWon[contract.team];
+}

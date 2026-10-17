@@ -58,9 +58,4 @@ export function useDemoLobby(code: string, nickname: string, botLevel: BotLevel,
   };
 }
 
-const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-export function newRoomCode(): string {
-  const bytes = new Uint8Array(5);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => CODE_CHARS[b % CODE_CHARS.length]).join('');
-}
+export { newRoomCode } from '../../shared/roomCode';

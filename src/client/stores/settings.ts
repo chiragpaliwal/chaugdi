@@ -6,8 +6,8 @@ export type DeckSetting = '4' | '2';
 export type MotionSetting = 'reduced' | 'relaxed' | 'normal' | 'fast';
 export type BotLevel = 'easy' | 'medium' | 'hard';
 /** Short: first to +26. Standard: first to +52 (GDD §3.7 targetScore). */
-export type MatchLength = 'short' | 'standard';
-export const TARGET_SCORE: Record<MatchLength, number> = { short: 26, standard: 52 };
+export { TARGET_SCORE, type MatchLength } from '../../shared/constants';
+import type { MatchLength } from '../../shared/constants';
 
 export interface Settings {
   theme: ThemeSetting;

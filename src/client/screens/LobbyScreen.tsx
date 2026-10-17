@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Seat } from '../../engine/types';
+import { ONLINE } from '../../shared/constants';
 import { Segmented } from '../components/Controls';
 import { BotIcon } from '../components/GameParts';
 import type { BotLevel } from '../stores/settings';
@@ -38,7 +39,7 @@ const BOTS = [{ value: 'easy', label: 'Easy' }, { value: 'medium', label: 'Mediu
 const LEVEL: Record<BotLevel, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
 /** The deal starts this many seconds after the host taps Start (03c). */
-export const START_SECONDS = 3;
+export const START_SECONDS = ONLINE.startSeconds;
 
 const rel = (you: Seat, k: number) => ((you + k) % 4) as Seat;
 

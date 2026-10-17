@@ -1,4 +1,5 @@
 import type { Team } from '../../engine/types';
+import { ONLINE } from '../../shared/constants';
 
 export interface PauseVoteView {
   name: string;
@@ -11,9 +12,9 @@ export interface PauseVoteView {
   yourVote: 'wait' | 'bot' | null;
 }
 
-/** The extension vote opens only when 30 s or less are left. */
-export const EXTEND_OPENS_AT = 30;
-export const EXTEND_BY = 60;
+/** The extension vote opens only when 30 s or less are left (seconds; the GameRoom enforces it). */
+export const EXTEND_OPENS_AT = ONLINE.extendOpensMs / 1000;
+export const EXTEND_BY = ONLINE.extendByMs / 1000;
 
 export const clock = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
 

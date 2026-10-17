@@ -59,3 +59,26 @@ export const scaledEventMs = (e: GameEvent, speed: MotionSpeed) => Math.round(ev
 export function animBudgetMs(events: readonly GameEvent[], speed: MotionSpeed = 'normal'): number {
   return events.reduce((sum, e) => sum + scaledEventMs(e, speed), 0);
 }
+
+/** Short: first to +26. Standard: first to +52 (GDD §3.7 targetScore). */
+export type MatchLength = 'short' | 'standard';
+export const TARGET_SCORE: Record<MatchLength, number> = { short: 26, standard: 52 };
+
+/** Online room rules (GDD §10.3, §10.6, §10.9) shared by the GameRoom and the online client. */
+export const ONLINE = {
+  turnSeconds: [10, 20, 30] as const,
+  defaultTurnSeconds: 20,
+  /** The deal starts this long after the host taps Start (03c). */
+  startSeconds: 3,
+  /** A dropped player's seat is held this long before a bot takes it. */
+  graceMs: 30_000,
+  /** "Wait 1 more minute" opens only when this little of the hold is left. */
+  extendOpensMs: 30_000,
+  extendByMs: 60_000,
+  /** Timeouts in a row before the seat switches to bot control until `imBack`. */
+  afkStrikes: 2,
+  /** No connections for this long closes the room. */
+  idleCleanupMs: 30 * 60_000,
+  maxMessagesPerSecond: 10,
+  maxPayloadBytes: 2048,
+} as const;

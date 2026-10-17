@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { cloudflare } from '@cloudflare/vite-plugin';
 
 const PUBLIC_FILES = ['/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-180.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 
@@ -11,6 +12,8 @@ function serviceWorker(): Plugin {
   return {
     name: 'chaugadi-sw',
     apply: 'build',
+    // The Worker build has its own bundle; only the SPA gets a service worker.
+    applyToEnvironment: (env) => env.name === 'client',
     generateBundle(_, bundle) {
       const files = ['/', ...PUBLIC_FILES, ...Object.keys(bundle).filter((f) => !f.endsWith('.map')).map((f) => `/${f}`)];
       const version = Object.keys(bundle).sort().join('|');
@@ -46,8 +49,10 @@ self.addEventListener('fetch', (e) => {
 });
 `;
 
-export default defineConfig({
-  plugins: [react(), serviceWorker()],
+export default defineConfig(({ mode }) => ({
+  // The Cloudflare plugin runs the Worker, GameRoom and local D1 inside `vite dev` and
+  // `vite preview`, and builds dist/client + dist/chaugadi for `wrangler deploy`.
+  plugins: [react(), serviceWorker(), ...(mode === 'test' ? [] : [cloudflare()])],
   server: { port: 5173, strictPort: true },
   test: { include: ['src/**/*.test.ts'] },
-});
+}));

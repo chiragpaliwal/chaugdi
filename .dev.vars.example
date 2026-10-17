@@ -1,0 +1,2 @@
+# Copy to .dev.vars for local runs. Production: npx wrangler secret put TOKEN_SECRET
+TOKEN_SECRET=dev-only-secret-change-me

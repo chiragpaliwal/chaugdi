@@ -1,48 +1,76 @@
 # Chaugadi
 
-A four-player trick-taking card game (a Court Piece variant) for the browser: solo against bots, a How to Play tutorial, and online rooms. It is a PWA, so solo mode works offline after the first load.
+Chaugadi (also Chaugdi or Chokdi) is an Indian card game for four players in two teams, a bidding variant of Court Piece. This is a free web version for your phone or computer. You can play three bots, even offline, or invite friends to a private room with a five-letter code.
 
-- **Client:** React + Vite, served as static assets by the Worker.
-- **Server:** Cloudflare Worker, one `GameRoom` Durable Object per room, D1 for match history.
+New to the game? Open **How to play** from the home screen to play one guided practice hand.
 
-## Develop
+## How to play
+
+**Teams.** Partners sit opposite each other, and play always passes to the left. The game uses a standard 52-card deck, ranked A high down to 2.
+
+**1. Bid on five cards.** Everyone is dealt 5 cards. Starting left of the dealer, players bid how many of the 13 tricks (*Sar*) their team will win, from 7 to 13, or pass.
+- The opener must bid at least 7.
+- A player who passed may bid again on a later turn.
+- The auction ends after three passes in a row, or straight away on a bid of 13.
+
+**2. Call Hukum.** The highest bidder picks the trump suit (*Hukum*). Everyone is then dealt 8 more cards.
+
+**3. Play the tricks.** The bidder leads the first trick.
+- If you have a card of the suit that was led, you must play one.
+- If you don't, play anything: a trump to *cut*, or a discard.
+- The highest trump wins the trick. If no trump was played, the highest card of the led suit wins.
+- The winner of a trick leads the next one.
+
+**4. Score.** The round stops as soon as its result is certain, and all hands are shown.
+
+| Result | Bidding team |
+|---|---|
+| Made the bid | +bid |
+| Missed it | −2 × bid |
+| Bid 13 and won all 13 (*Kot*) | Wins the match instantly |
+
+**The score.** Both teams share one running score that shows only the leading team, for example "Us +9". The first team to **+26** (short match) or **+52** (standard) wins. Your team can also climb when the other team misses a bid.
+
+> **Tip:** you gain the bid or lose twice the bid, so only bid when you are more than 2/3 sure of making it.
+
+**Who deals.** A team that is level or behind keeps the deal. Once the dealer's team is ahead, the deal passes to the left.
+
+## Features
+
+- **Solo play** against Easy, Medium or Hard bots. It works offline once the page has loaded, and you can install it as an app.
+- **Private online rooms:** share a code, and bots fill any empty seats. If you drop out, a bot plays your turns until you rejoin.
+- **Accessibility:** you can play by keyboard, the game is screen-reader friendly, and there is a reduced-motion option and a volume control.
+
+## Run it yourself
+
+The client is built with React, TypeScript and Vite. The server is a Cloudflare Worker, with one Durable Object per room and D1 for match history. The rules engine in `src/engine` is shared by both, so a hand plays the same offline and online.
 
 ```sh
 npm install
 echo "TOKEN_SECRET=$(openssl rand -hex 32)" > .dev.vars
-npm run db:migrate      # local D1
+npm run db:migrate      # local database
 npm run dev             # http://localhost:5173
 ```
 
-| Command | What it runs |
+| Command | What it does |
 |---|---|
-| `npm test` | Unit, property and self-play tests (`SELFPLAY_N=10000 npm test` runs the full self-play set) |
-| `npm run typecheck` | Client and server TypeScript |
-| `npm run e2e` | Build, then the Playwright suite (solo, tutorial, online, a11y, perf) |
-| `npm run e2e:server` | Smoke test against a real workerd |
+| `npm test` | Unit, property and bot self-play tests |
+| `npm run typecheck` | Type-checks the client and the server |
+| `npm run e2e` | Builds, then runs the Playwright browser tests |
 
-## Deploy
+### Deploy to Cloudflare
 
-All of these run once, on the first deploy:
+First deploy, once:
 
 ```sh
 npx wrangler login
+npx wrangler d1 create chaugadi            # put the printed database_id in wrangler.jsonc
 npx wrangler d1 migrations apply chaugadi --remote
-npx wrangler secret put TOKEN_SECRET      # paste the output of: openssl rand -hex 32
+npx wrangler secret put TOKEN_SECRET       # paste the output of: openssl rand -hex 32
 ```
 
-To deploy, run `npm run deploy`. It builds, then uploads the Worker and its assets.
-
-After a schema change, add a file to `migrations/` and run `npx wrangler d1 migrations apply chaugadi --remote` before you deploy.
-
-### Custom domain
-
-The domain's DNS must be on Cloudflare, in the same account as the Worker. Add a route to `wrangler.jsonc`, then deploy:
+Then run `npm run deploy`. To serve the game from your own domain, the domain must be on Cloudflare. Add this to `wrangler.jsonc` and deploy again:
 
 ```jsonc
-"routes": [{ "pattern": "example.com", "custom_domain": true }]
+"routes": [{ "pattern": "play.example.com", "custom_domain": true }]
 ```
-
-Cloudflare creates the DNS record and the certificate itself. Don't keep an existing A, AAAA or CNAME record for that hostname. The client builds API and socket URLs from `window.location.host`, so no code changes are needed.
-
-Useful afterwards: `npx wrangler tail` shows live logs, and `npx wrangler rollback` returns to the previous version.

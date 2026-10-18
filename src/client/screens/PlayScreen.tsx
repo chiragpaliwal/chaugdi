@@ -8,7 +8,7 @@ import { PauseVote, type PauseVoteView } from '../components/PauseVote';
 import { RacePill } from '../components/RacePill';
 import { Table } from '../components/Table';
 import { useFeatures } from '../features';
-import { describePlay, IDLE_HINT, illegalReason, isLegal, yourTurnStatus, type StatusParts } from '../table/hints';
+import { describePlay, illegalReason, isLegal, yourTurnStatus, type StatusParts } from '../table/hints';
 import { handCardWidth, type CardSizeSetting, type ViewSeat } from '../table/geometry';
 import type { RaceView, SeatView, TrickView } from '../view/types';
 import { GameFrame, TABLE_MARGIN, fitTable, PILL_TABLE_MIN, type HudView } from './GameFrame';
@@ -26,7 +26,7 @@ export interface PlayView {
   yourTurn: boolean;
   /**
    * 'turn': status line, two-row fan, hint and CTA (10, 10c).
-   * 'idle': stake line and a flatter fan while others play (11, 12).
+   * 'idle': the same hand, no hint or CTA, while others play (11, 12).
    */
   layout: 'turn' | 'idle';
   status?: StatusParts;
@@ -101,8 +101,10 @@ export function PlayScreen({ v, width = 390, height = 844, cardSize = 'M', onPla
         {v.pauseVote && <PauseVote v={v.pauseVote} onVote={onVote} />}
         {v.stake && <StakeLine {...v.stake} />}
         {v.lane && <ChatLane {...v.lane} />}
-        <HandFan cards={cards} width={tableW} cardWidth={w} hukum={v.hukum} shape="idle" height={120}
-          className={v.held ? 'held' : undefined} style={{ margin: `${v.toast || v.pauseVote ? 6 : 8}px 12px 0` }} />
+        {/* An empty status line and the same fan as your turn, so the hand stays put between turns. */}
+        <div className="status-line" style={{ marginTop: 4 }} aria-hidden="true" />
+        <HandFan cards={cards} width={tableW} cardWidth={w} hukum={v.hukum}
+          className={v.held ? 'held' : undefined} style={{ margin: '0 12px' }} />
         <div className="dock">
           <ChatButton unread={v.unread} />
           {chat && !v.held ? <Reactions /> : <DockStatus text={v.dock ?? 'Waiting'} />}
@@ -114,7 +116,7 @@ export function PlayScreen({ v, width = 390, height = 844, cardSize = 'M', onPla
   const status = v.status ?? (yourTurn ? yourTurnStatus(v.hand, v.plays) : { bold: 'Waiting', text: '' });
   const ctx = { plays: v.plays, hukum: v.hukum, names };
   const hint = illegal ? illegalReason(v.hand, v.plays)
-    : v.hint ?? (selected ? describePlay(selected, ctx) : IDLE_HINT);
+    : v.hint ?? (selected ? describePlay(selected, ctx) : null);
 
   return (
     <GameFrame width={width} height={height} hud={v.hud}>
@@ -123,7 +125,7 @@ export function PlayScreen({ v, width = 390, height = 844, cardSize = 'M', onPla
       <HandFan cards={cards} width={tableW} cardWidth={w} hukum={v.hukum} yourTurn={yourTurn}
         selected={selected} onSelect={(c) => { setSelected(c); setIllegal(null); }} onPlay={play} onIllegal={tapIllegal}
         style={{ margin: '0 12px' }} />
-      <HintLine text={hint} warn={!!illegal} />
+      {hint && <HintLine text={hint} warn={!!illegal} />}
       <div className="dock">
         <ChatButton unread={v.unread} />
         <CardsSeenButton onClick={onCardsSeen} />

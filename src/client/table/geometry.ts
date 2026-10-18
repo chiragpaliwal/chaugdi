@@ -35,6 +35,10 @@ export const TRICK_ROTATION: Record<ViewSeat, number> = { 0: 0, 1: -4, 2: 3, 3: 
 const SEATS: ViewSeat[] = [0, 1, 2, 3];
 /** Avatar radius with its turn ring. */
 const AVATAR_R = 30;
+/** A seat column runs from avatar centre − 21 to + 65 (avatar, name, hand count); 4 more for air. */
+const SEAT_BELOW = 69;
+/** Tightest vertical trick offset before the top and bottom cards crowd the side ones. */
+const TRICK_DY_MIN = 36;
 /** Shortest table with room for the full RacePill (chips, line and dots) above your seat. */
 export const PILL_FULL_H = 412;
 
@@ -55,13 +59,21 @@ export function tableGeometry(W: number, H: number): TableGeometry {
     const p = { x: Math.round(cx + rx * Math.cos(a)), y: Math.round(cy + ry * Math.sin(a)) };
     avatar[i] = p;
     seatBox[i] = { x: p.x - SEAT_COLUMN_W / 2, y: p.y - 21 };
-    slot[i] = { x: C.x + TRICK_OFFSET[i].x - TRICK_W / 2, y: C.y + TRICK_OFFSET[i].y - TRICK_H / 2 };
+  }
+  // On a short table the top card would cover the partner's name and hand count: pull the
+  // top and bottom cards in towards the side ones, then move the whole cross down.
+  const overlap = Math.max(0, avatar[2].y + SEAT_BELOW - (C.y + TRICK_OFFSET[2].y - TRICK_H / 2));
+  const dy = Math.max(TRICK_DY_MIN, TRICK_OFFSET[0].y - overlap);
+  const X = { x: C.x, y: C.y + overlap - (TRICK_OFFSET[0].y - dy) };
+  for (const i of SEATS) {
+    const off = TRICK_OFFSET[i].y === 0 ? 0 : Math.sign(TRICK_OFFSET[i].y) * dy;
+    slot[i] = { x: X.x + TRICK_OFFSET[i].x - TRICK_W / 2, y: X.y + off - TRICK_H / 2 };
   }
   // Never inside the cross: 131 below C at H 470, 120 when the table is shorter. Below
   // PILL_FULL_H only the chips fit, centred between the cross and your seat's avatar.
   const pillCompact = H < PILL_FULL_H;
-  const pillY = H >= 470 ? C.y + 131 : !pillCompact ? C.y + 120
-    : Math.round((C.y + TRICK_OFFSET[0].y + TRICK_H / 2 + avatar[0].y - AVATAR_R) / 2);
+  const pillY = H >= 470 ? C.y + 131 : !pillCompact ? Math.max(C.y + 120, slot[0].y + TRICK_H + 26)
+    : Math.round((slot[0].y + TRICK_H + avatar[0].y - AVATAR_R) / 2);
   const pill = { x: C.x, y: pillY };
   return { avatar, seatBox, C, slot, pill, pillCompact, sheetCentre: { x: C.x, y: Math.round(cy + 14) } };
 }

@@ -20,9 +20,10 @@ export function HintLine({ text, warn }: { text: string; warn?: boolean }) {
   return <p className={`hint${warn ? ' warn' : ''}`} aria-live="polite">{text}</p>;
 }
 
+/** Trick and round outcomes for screen readers only; the table already shows them. */
 export function StakeLine({ suit, text }: { suit?: Suit; text: string }) {
   return (
-    <div className="stake" aria-live="polite">
+    <div className="stake sr-only" aria-live="polite">
       {suit && <SuitIcon suit={suit} className={`su-${suit}`} />}
       <span>{text}</span>
     </div>

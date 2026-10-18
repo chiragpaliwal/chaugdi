@@ -361,7 +361,8 @@ function stake(c: Ctx, view: PlayerView, ev: Playing['event'] | undefined, trick
   const suit: Suit | undefined = cut ? trump : undefined;
   if (mode === 'peek') return { suit, text: `Last trick: ${what} took it.` };
   if (ev?.t === 'trickWon' || trick.plays.length === 4) return { suit, text: `${what} takes trick ${ev?.t === 'trickWon' ? ev.trickNo : view.tricks.length}.` };
-  return { suit, text: `${what} wins so far.` };
+  // Mid-trick the cards on the table already say who is winning.
+  return undefined;
 }
 
 // ---------------------------------------------------------------- round summary (14)

@@ -28,6 +28,12 @@ describe('tableGeometry (HANDOFF §3)', () => {
     expect(g.pill.y - 12).toBeGreaterThanOrEqual(crossBottom); // the chips are 24 tall
     expect(g.pill.y + 12).toBeLessThanOrEqual(avatarTop);
   });
+  it.each([356, 380, 412, 440, 470])('keeps the top card below the partner\'s name and hand count at H %i', (H) => {
+    const g = tableGeometry(366, H);
+    expect(g.slot[2].y).toBeGreaterThanOrEqual(g.avatar[2].y + 65);
+    expect(g.slot[2].y + 64).toBeLessThanOrEqual(g.slot[1].y + 32); // still above the side cards' middle
+    expect(g.slot[0].y + 64).toBeLessThanOrEqual(g.avatar[0].y - 30);
+  });
 });
 
 describe('fanLayout (HANDOFF §3 HandFan)', () => {

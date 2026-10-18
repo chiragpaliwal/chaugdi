@@ -65,5 +65,3 @@ export function describePlay(card: CardId, ctx: TrickContext): string {
   const still = before.seat === winner.seat ? 'still ' : '';
   return `${short} ${verb}. ${winnerPhrase(winner, ctx)} ${still}wins this trick.`;
 }
-
-export const IDLE_HINT = 'Tap a card to see what it does. Tap it again to play.';

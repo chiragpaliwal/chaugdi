@@ -22,6 +22,8 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 9341a826555f5519ed9a16aa3a0b05ba
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

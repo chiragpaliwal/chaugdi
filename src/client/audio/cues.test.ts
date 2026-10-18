@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { emptyAuction } from '../../engine/auction';
 import type { PlayerView, Seat } from '../../engine/types';
 import { feedbackFor, teamName, turnPrompt, type FeedbackContext } from './cues';
 import { HAPTIC } from './haptics';
@@ -65,10 +66,11 @@ describe('teamName', () => {
 });
 
 describe('turnPrompt', () => {
-  const v = (over: Partial<PlayerView>) => ({ you: 0, turn: 0, phase: 'TRICK_LOOP', current: null, ...over } as Pick<PlayerView, 'you' | 'turn' | 'phase' | 'current'>);
+  const v = (over: Partial<PlayerView>) => ({ you: 0, turn: 0, phase: 'TRICK_LOOP', current: null, auction: emptyAuction(), ...over } as Pick<PlayerView, 'you' | 'turn' | 'phase' | 'current' | 'auction'>);
   it('prompts only on your turn', () => {
     expect(turnPrompt(v({ turn: 1 }))).toBeNull();
-    expect(turnPrompt(v({ phase: 'BIDDING' }))).toBe('Your call. Bid or pass.');
+    expect(turnPrompt(v({ phase: 'BIDDING' }))).toBe('You open. Bid 7 or more.');
+    expect(turnPrompt(v({ phase: 'BIDDING', auction: { high: { seat: 3, value: 7 }, consecutivePasses: 0, log: [{ seat: 3, kind: 'bid', value: 7 }] } }))).toBe('Your call. Bid or pass.');
     expect(turnPrompt(v({}))).toBe('Your lead.');
     expect(turnPrompt(v({ current: { leader: 3, plays: [{ seat: 3, card: '2C' }] } }))).toBe('Your turn.');
     expect(turnPrompt(v({ phase: 'ROUND_EVAL' }))).toBeNull();

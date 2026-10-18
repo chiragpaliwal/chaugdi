@@ -2,6 +2,7 @@
 // Pure, so the mapping is tested without a browser.
 
 import { nextSeat, otherTeam, partnerOf, standing, teamOf, type GameEvent, type PlayerView, type Seat, type Team } from '../../engine/types';
+import { canPass } from '../../engine/auction';
 import { MOTION } from '../../shared/constants';
 import { cardLabel, SUIT_NAME } from '../components/cardText';
 import { HAPTIC, type Pattern } from './haptics';
@@ -104,10 +105,10 @@ export function feedbackFor(e: GameEvent, ctx: FeedbackContext): Feedback {
 }
 
 /** The prompt when the turn reaches you, or null when there is nothing to do. */
-export function turnPrompt(view: Pick<PlayerView, 'you' | 'turn' | 'phase' | 'current'>): string | null {
+export function turnPrompt(view: Pick<PlayerView, 'you' | 'turn' | 'phase' | 'current' | 'auction'>): string | null {
   if (view.turn !== view.you) return null;
   switch (view.phase) {
-    case 'BIDDING': return 'Your call. Bid or pass.';
+    case 'BIDDING': return canPass(view.auction) ? 'Your call. Bid or pass.' : 'You open. Bid 7 or more.';
     case 'TRUMP_SELECTION': return 'Call Hukum.';
     case 'TRICK_LOOP': return view.current?.plays.length ? 'Your turn.' : 'Your lead.';
     default: return null;

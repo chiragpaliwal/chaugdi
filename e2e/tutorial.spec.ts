@@ -49,7 +49,7 @@ test('intro, practice hand with tips, Finish returns Home; the solo save is unto
       if (await tap(card)) await tap(card);
     } else await page.waitForTimeout(60);
   }
-  expect(tips.slice(0, 5)).toEqual(['Your first 5 cards', 'Bid or pass', 'Call Hukum', 'You lead', 'Race to the contract']);
+  expect(tips.slice(0, 5)).toEqual(['Your first 5 cards', 'Open the bidding', 'Call Hukum', 'You lead', 'Race to the contract']);
   expect(tips.at(-1)).toBe('That’s Chaugadi');
   expect(tips.some((t) => / cut$/.test(t)), 'a cut tip').toBe(true);
   await page.waitForURL((u) => u.pathname === '/');

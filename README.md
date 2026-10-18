@@ -40,7 +40,3 @@ New to the game? Open **How to play** from the home screen to play one guided pr
 - **Solo play** against Easy, Medium or Hard bots. It works offline once the page has loaded, and you can install it as an app.
 - **Private online rooms:** share a code, and bots fill any empty seats. If you drop out, a bot plays your turns until you rejoin.
 - **Accessibility:** you can play by keyboard, the game is screen-reader friendly, and there is a reduced-motion option and a volume control.
-
-```jsonc
-"routes": [{ "pattern": "play.example.com", "custom_domain": true }]
-```

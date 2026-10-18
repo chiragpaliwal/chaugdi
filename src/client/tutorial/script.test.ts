@@ -56,9 +56,9 @@ describe('tutorial practice hand', () => {
     driver.destroy();
   });
 
-  it('forces 7 on you when you pass too', async () => {
+  it('makes your opening 7 a forced contract when everyone passes', async () => {
     const { driver, tick, snap } = setup();
-    driver.send({ type: 'pass' });
+    driver.send({ type: 'bid', value: 7 });
     while (snap().view.phase === 'BIDDING') await tick();
     expect(driver.match.round!.contract).toMatchObject({ seat: 0, bid: 7, forced: true });
     driver.destroy();

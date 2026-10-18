@@ -1,7 +1,7 @@
 // GDD §8.6 test vectors. TV-13–15 live in tricks.test.ts; TV-17 in selfplay.test.ts.
 
 import { describe, expect, it } from 'vitest';
-import { apply, newMatch } from '../reducer';
+import { apply, legalActions, newMatch } from '../reducer';
 import { DEFAULT_CONFIG, RuleError, type Action, type GameEvent, type MatchState, type Seat } from '../types';
 import { viewFor } from '../view';
 import { atPlay, deepFreeze, playOut, playRow } from './helpers';
@@ -42,8 +42,15 @@ describe('TV-1 worked example (GDD §3.8)', () => {
 });
 
 describe('auction', () => {
-  it('TV-2: four passes force dealer+1 to play 7', () => {
-    const { state, events } = run(newMatch(DEFAULT_CONFIG, 'tv2', 3), [pass(0), pass(1), pass(2), pass(3)]);
+  it('TV-2: dealer+1 cannot pass the opening call', () => {
+    const m = newMatch(DEFAULT_CONFIG, 'tv2', 3);
+    expect(code(() => apply(m, pass(0)))).toBe('OPENER_MUST_BID');
+    expect(legalActions(m)).not.toContainEqual(pass(0));
+    expect(legalActions(m)[0]).toEqual(bid(0, 7));
+  });
+
+  it('TV-2b: the compulsory 7 with three passes is a forced contract', () => {
+    const { state, events } = run(newMatch(DEFAULT_CONFIG, 'tv2', 3), [bid(0, 7), pass(1), pass(2), pass(3)]);
     expect(state.round!.contract).toEqual({ seat: 0, team: 'A', bid: 7, forced: true });
     expect(state.phase).toBe('TRUMP_SELECTION');
     expect(state.round!.turn).toBe(0);

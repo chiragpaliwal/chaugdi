@@ -1,7 +1,7 @@
 // The rules reducer (GDD §6, §8). Pure: no clock, no Math.random, never mutates its input.
 
 import { cloneHands, cloneMatch } from './clone';
-import { emptyAuction, legalBidValues, stepBid, stepPass, type AuctionStep } from './auction';
+import { canPass, emptyAuction, legalBidValues, stepBid, stepPass, type AuctionStep } from './auction';
 import { roundRng, shuffle, SORTED_DECK } from './rng';
 import { isRoundDecided, nextDealer, roundDelta } from './scoring';
 import { isFirstCut, legalCards, trickWinner } from './tricks';
@@ -46,8 +46,9 @@ export function apply(input: MatchState, action: Action): Applied {
     }
     case 'PASS': {
       const round = requireTurn(state, 'BIDDING', action.seat);
+      if (!canPass(round.auction)) throw new RuleError('OPENER_MUST_BID');
       events.push({ t: 'pass', seat: action.seat });
-      afterAuctionStep(state, round, stepPass(round.auction, action.seat, state.dealer, state.config), events);
+      afterAuctionStep(state, round, stepPass(round.auction, action.seat, state.config), events);
       break;
     }
     case 'CHOOSE_TRUMP': {
@@ -195,7 +196,10 @@ export function legalCardsFor(state: MatchState, seat: Seat): CardId[] {
 export function legalActions(state: MatchState): Action[] {
   const turn = state.round?.turn;
   switch (state.phase) {
-    case 'BIDDING': return [{ type: 'PASS', seat: turn! }, ...legalBids(state, turn!).map((value) => ({ type: 'BID' as const, seat: turn!, value }))];
+    case 'BIDDING': {
+      const bids = legalBids(state, turn!).map((value) => ({ type: 'BID' as const, seat: turn!, value }));
+      return canPass(state.round!.auction) ? [{ type: 'PASS', seat: turn! }, ...bids] : bids;
+    }
     case 'TRUMP_SELECTION': return SUITS.map((suit) => ({ type: 'CHOOSE_TRUMP' as const, seat: turn!, suit }));
     case 'TRICK_LOOP': return legalCardsFor(state, turn!).map((card) => ({ type: 'PLAY_CARD' as const, seat: turn!, card }));
     case 'ROUND_EVAL': return [{ type: 'NEXT_ROUND' }];

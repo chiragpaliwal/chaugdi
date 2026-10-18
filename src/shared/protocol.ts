@@ -98,7 +98,7 @@ export interface RoomView {
 export type ErrorCode =
   | 'BAD_MESSAGE' | 'RATE_LIMITED' | 'UNAUTHORIZED' | 'ROOM_NOT_FOUND'
   | 'NOT_HOST' | 'NOT_SEATED' | 'SEAT_TAKEN' | 'NOT_READY' | 'NOT_BOT_CONTROLLED' | 'VOTE_CLOSED'
-  | 'WRONG_PHASE' | 'NOT_YOUR_TURN' | 'BID_OUT_OF_RANGE' | 'BID_NOT_HIGHER'
+  | 'WRONG_PHASE' | 'NOT_YOUR_TURN' | 'BID_OUT_OF_RANGE' | 'BID_NOT_HIGHER' | 'OPENER_MUST_BID'
   | 'NOT_CONTRACT_HOLDER' | 'CARD_NOT_IN_HAND' | 'MUST_FOLLOW_SUIT' | 'MATCH_OVER';
 
 /** `serverNow` lets the client correct for clock skew before showing `turnDeadline`. */

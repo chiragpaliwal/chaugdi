@@ -15,7 +15,7 @@ describe('feedbackFor', () => {
     expect(feedbackFor({ t: 'cardPlayed', seat: 3, card: 'QH' }, ctx()).say).toBe('Dev played Queen of hearts.');
     expect(feedbackFor({ t: 'cardPlayed', seat: 0, card: '4S' }, ctx()).say).toBe('You played 4 of spades, Hukum.');
     expect(feedbackFor({ t: 'roundStarted', roundNo: 2, dealer: 0 }, ctx()).say).toBe('Round 2. You deal.');
-    expect(feedbackFor({ t: 'auctionWon', seat: 3, value: 7, forced: true }, ctx()).say).toBe('Everyone passed. Dev must play 7.');
+    expect(feedbackFor({ t: 'auctionWon', seat: 3, value: 7, forced: true }, ctx()).say).toBe('Everyone passed. Dev plays the compulsory 7.');
   });
 
   it('haptics follow GDD §12.4: your team’s tricks only, no haptic on plays', () => {

@@ -60,7 +60,7 @@ export const auctionWaiting: AuctionView = {
   seats: r4AuctionSeats,
   high: { bid: 8, name: 'Ben', team: 'B' },
   passes: 1,
-  forcedName: 'You',
+  openerName: 'Ben',
   hand: FIRST_FIVE,
   yourTurn: false,
   dock: 'Dev is calling · you’re next',

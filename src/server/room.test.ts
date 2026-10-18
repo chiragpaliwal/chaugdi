@@ -105,7 +105,7 @@ function humanMove(h: H, p: string): ClientMessage | null {
   const v = h.view(p);
   const m = h.room.state.match!;
   if (!v || m.round?.turn !== v.you) return null;
-  if (m.phase === 'BIDDING') return { type: 'pass' };
+  if (m.phase === 'BIDDING') return v.auction.log.length ? { type: 'pass' } : { type: 'bid', value: 7 };
   if (m.phase === 'TRUMP_SELECTION') return { type: 'chooseTrump', suit: 'S' };
   if (m.phase === 'TRICK_LOOP') return { type: 'play', card: v.legal[0]! };
   return null;

@@ -4,7 +4,10 @@ import { nextSeat, type AuctionState, type MatchConfig, type Seat } from './type
 
 export const emptyAuction = (): AuctionState => ({ high: null, consecutivePasses: 0, log: [] });
 
-/** Bids the seat may make now (empty when it cannot bid at all). Passing is always allowed. */
+/** The opener (dealer+1) must bid on the first call: 7 by default, or more. Every later call may pass. */
+export const canPass = (auction: AuctionState): boolean => auction.log.length > 0;
+
+/** Bids the seat may make now (empty when it cannot bid at all). */
 export function legalBidValues(auction: AuctionState, config: MatchConfig): number[] {
   const min = auction.high ? auction.high.value + 1 : config.minBid;
   const out: number[] = [];
@@ -27,17 +30,17 @@ export function stepBid(a: AuctionState, seat: Seat, value: number, config: Matc
   return { done: false, auction, turn: nextSeat(seat) };
 }
 
-/** Applies a pass: three after a bid close it; four with no bid force dealer+1 to play minBid. */
-export function stepPass(a: AuctionState, seat: Seat, dealer: Seat, config: MatchConfig): AuctionStep {
+/**
+ * Applies a pass (the opener's first call never is one, see canPass): three after the high bid close it.
+ * `forced` marks a contract that is still the opener's compulsory 7, never raised.
+ */
+export function stepPass(a: AuctionState, seat: Seat, config: MatchConfig): AuctionStep {
   const passes = a.consecutivePasses + 1;
   const log = [...a.log, { seat, kind: 'pass' as const }];
+  const auction = { high: a.high, consecutivePasses: passes, log };
   if (a.high && passes === 3) {
-    const auction = { high: a.high, consecutivePasses: passes, log };
-    return { done: true, auction, winner: a.high, forced: false };
+    const forced = a.high.value === config.minBid && log.length === 4; // opener's 7, then three passes
+    return { done: true, auction, winner: a.high, forced };
   }
-  if (!a.high && passes === 4) {
-    const winner = { seat: nextSeat(dealer), value: config.minBid };
-    return { done: true, auction: { high: winner, consecutivePasses: passes, log }, winner, forced: true };
-  }
-  return { done: false, auction: { high: a.high, consecutivePasses: passes, log }, turn: nextSeat(seat) };
+  return { done: false, auction, turn: nextSeat(seat) };
 }

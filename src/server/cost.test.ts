@@ -5,7 +5,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { SEATS, type Seat } from '../engine/types';
-import type { BotLevel } from '../engine/bots';
+import { decide, type BotLevel } from '../engine/bots';
+import { rngFrom } from '../engine/rng';
 import type { PlayerView } from '../engine/types';
 import type { ClientMessage, ServerMessage } from '../shared/protocol';
 import { planAlarm, wakeAt } from './alarm';
@@ -55,9 +56,8 @@ function playMatch(humans: string[], botLevel: BotLevel): Cost {
       let move: ClientMessage | null = null;
       if (m?.phase === 'ROUND_EVAL') { if (!room.state.continued.includes(p)) move = { type: 'continue' }; }
       else if (m?.round?.turn === seat && v?.turn === seat) {
-        move = m.phase === 'BIDDING' ? { type: 'pass' }
-          : m.phase === 'TRUMP_SELECTION' ? { type: 'chooseTrump', suit: 'S' }
-          : m.phase === 'TRICK_LOOP' ? { type: 'play', card: v.legal[0]! } : null;
+        // Humans decide like a Medium bot: sensible bids (the opener's compulsory 7 included), Hukum and play.
+        move = decide(v, 'medium', { rng: rngFrom(`${m.seed}:${p}:${v.seq}`) });
       }
       if (!move) { due.delete(p); continue; }
       // A human acts after the update's start offset and animations, plus thinking time.
@@ -88,12 +88,12 @@ function playMatch(humans: string[], botLevel: BotLevel): Cost {
 describe('free-tier cost per short match', () => {
   const rows: string[] = [];
   const cases: [string, string[], BotLevel, { requests: number; rowsWritten: number }][] = [
-    // Budgets: what the match cost when measured (2026-10-18) plus ~15%. Raising one is a
-    // decision: rows written cap the free tier at ~100k / budget matches a day.
-    ['1 human, 3 medium bots', ['a'], 'medium', { requests: 80, rowsWritten: 300 }],
-    ['2 humans, 2 medium bots', ['a', 'b'], 'medium', { requests: 160, rowsWritten: 700 }],
-    ['4 humans', ['a', 'b', 'c', 'd'], 'medium', { requests: 95, rowsWritten: 450 }],
-    ['2 humans, 2 hard bots', ['a', 'b'], 'hard', { requests: 220, rowsWritten: 720 }],
+    // Budgets: what the match cost when measured (2026-10-18, humans deciding like Medium) plus
+    // ~15%. Raising one is a decision: rows written cap the free tier at ~100k / budget matches a day.
+    ['1 human, 3 medium bots', ['a'], 'medium', { requests: 93, rowsWritten: 355 }],
+    ['2 humans, 2 medium bots', ['a', 'b'], 'medium', { requests: 128, rowsWritten: 575 }],
+    ['4 humans', ['a', 'b', 'c', 'd'], 'medium', { requests: 55, rowsWritten: 245 }],
+    ['2 humans, 2 hard bots', ['a', 'b'], 'hard', { requests: 156, rowsWritten: 530 }],
   ];
   for (const [name, humans, level, budget] of cases) {
     it(`${name}: within budget`, () => {

@@ -14,7 +14,12 @@ test('a round is playable with the keyboard alone', async ({ page }) => {
   while (plays < 6 && Date.now() < deadline) {
     if (await visible(page, '.sheet[aria-label="Your call"] .sheet-btns .pass:not(.on)')) {
       const open = await page.locator('.bid-num:has-text("7"):not([aria-disabled])').count();
-      if (open && bids === 0) {
+      if (await page.locator('.sheet-btns .pass[aria-disabled]').count()) {
+        await expect(page.locator('.sheet-btns .cta')).toHaveText('Bid 7'); // the compulsory 7 is preselected
+        await page.keyboard.press('p'); // ignored: the opener cannot pass
+        await expect(page.locator('.sheet-btns .pass')).not.toHaveClass(/\bon\b/);
+        await page.keyboard.press('Enter');
+      } else if (open && bids === 0) {
         await page.keyboard.press('ArrowRight'); // selects the lowest open number
         await expect(page.locator('.sheet-btns .cta')).toHaveText('Bid 7');
         await page.keyboard.press('Enter');

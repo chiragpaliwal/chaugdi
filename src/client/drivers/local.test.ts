@@ -38,11 +38,11 @@ function fakeTimers() {
   };
 }
 
-/** A simple human: pass, spades, first legal card, continue. */
+/** A simple human: pass (or open at 7), spades, first legal card, continue. */
 function humanMove(driver: LocalDriver, v: PlayerView) {
   if (v.phase === 'ROUND_EVAL') return driver.send({ type: 'continue' });
   if (v.turn !== v.you) return;
-  if (v.phase === 'BIDDING') driver.send({ type: 'pass' });
+  if (v.phase === 'BIDDING') driver.send(v.auction.log.length ? { type: 'pass' } : { type: 'bid', value: 7 });
   else if (v.phase === 'TRUMP_SELECTION') driver.send({ type: 'chooseTrump', suit: 'S' });
   else if (v.phase === 'TRICK_LOOP') driver.send({ type: 'play', card: v.legal[0]! });
 }

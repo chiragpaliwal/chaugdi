@@ -1,6 +1,6 @@
 // Bots (GDD §9). They receive only a PlayerView, so they cannot see hidden cards.
 
-import { legalBidValues } from '../auction';
+import { canPass, legalBidValues } from '../auction';
 import { partnerOf, SUITS, type Action, type CardId, type PlayerView, type Seat, type Suit } from '../types';
 import { estimateOdds, evaluateHand, pickBid, type BidPolicy } from './bid';
 import { contextFromView } from './memory';
@@ -55,7 +55,11 @@ export function intentToAction(intent: Intent, seat: Seat): Action {
 export function decide(view: PlayerView, level: BotLevel, opts: BotOptions): Intent | null {
   if (view.turn !== view.you) return null;
   switch (view.phase) {
-    case 'BIDDING': return decideBid(view, level, opts);
+    case 'BIDDING': {
+      const intent = decideBid(view, level, opts);
+      // The opener cannot pass: a hand it would pass with plays the compulsory 7.
+      return intent.type === 'pass' && !canPass(view.auction) ? { type: 'bid', value: view.config.minBid } : intent;
+    }
     case 'TRUMP_SELECTION': return { type: 'chooseTrump', suit: decideTrump(view, level, opts) };
     case 'TRICK_LOOP': return { type: 'play', card: decidePlay(view, level, opts) };
     default: return null;

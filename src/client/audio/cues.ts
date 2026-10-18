@@ -54,7 +54,7 @@ export function feedbackFor(e: GameEvent, ctx: FeedbackContext): Feedback {
     case 'pass':
       return { cues: [cue('pass')], say: `${who(e.seat)} passed.` };
     case 'auctionWon':
-      return { cues: [], say: e.forced ? `Everyone passed. ${who(e.seat)} must play 7.` : `${who(e.seat)} won the auction at ${e.value}.` };
+      return { cues: [], say: e.forced ? `Everyone passed. ${who(e.seat)} plays the compulsory 7.` : `${who(e.seat)} won the auction at ${e.value}.` };
     case 'trumpChosen':
       return { cues: [cue('trumpReveal')], haptic: HAPTIC.hukum, say: `${cap(SUIT_NAME[e.suit])} are Hukum. Eight more cards each.` };
     case 'cardPlayed':

@@ -34,7 +34,7 @@ export const DEFAULT_CONFIG: MatchConfig = { targetScore: 52, minBid: 7, maxBid:
 export type AuctionEntry = { seat: Seat; kind: 'bid'; value: number } | { seat: Seat; kind: 'pass' };
 export interface AuctionState {
   high: { seat: Seat; value: number } | null;
-  consecutivePasses: number; // passes since the last bid (or since the start if nobody has bid)
+  consecutivePasses: number; // passes since the last bid (the opener always bids first)
   log: AuctionEntry[];
 }
 
@@ -145,7 +145,7 @@ export interface PlayerView {
 
 // ---------- errors ----------
 export type RuleErrorCode =
-  | 'WRONG_PHASE' | 'NOT_YOUR_TURN' | 'BID_OUT_OF_RANGE' | 'BID_NOT_HIGHER'
+  | 'WRONG_PHASE' | 'NOT_YOUR_TURN' | 'BID_OUT_OF_RANGE' | 'BID_NOT_HIGHER' | 'OPENER_MUST_BID'
   | 'NOT_CONTRACT_HOLDER' | 'CARD_NOT_IN_HAND' | 'MUST_FOLLOW_SUIT' | 'MATCH_OVER';
 
 export class RuleError extends Error {

@@ -5,10 +5,8 @@ import { FactChips } from './GameParts';
 
 export interface BidSheetProps {
   high: { bid: number; name: string; team: Team } | null;
-  /** Passes since the high bid (0–2), or since the start when nobody has bid (0–3). */
+  /** Passes since the high bid (0–2). No high bid means you are the opener and must bid. */
   passes: number;
-  /** Who must play 7 if everyone passes (GDD §3.4.2 c). */
-  forcedName: string;
   facts: Fact[];
   selected: number | null;
   passed: boolean;
@@ -20,20 +18,18 @@ export interface BidSheetProps {
 const BIDS = [7, 8, 9, 10, 11, 12, 13];
 const KEY_TO_BID: Record<string, number> = { '7': 7, '8': 8, '9': 9, '0': 10, '1': 11, '2': 12, '3': 13 };
 
-export function passLine(p: Pick<BidSheetProps, 'high' | 'passes' | 'forcedName' | 'passed'>): string {
-  if (p.high) {
-    if (p.passed && p.passes >= 2) return `You passed. Three in a row: ${p.high.name} plays ${p.high.bid}.`;
-    if (p.passes >= 2) return `${p.passes} of 3 passes · passing now gives ${p.high.name} the bid at ${p.high.bid}`;
-    return `${p.passes} of 3 passes · three in a row give ${p.high.name} the bid at ${p.high.bid}`;
-  }
-  return `${p.passes} of 4 passes · if everyone passes, ${p.forcedName} must play 7`;
+export function passLine(p: Pick<BidSheetProps, 'high' | 'passes' | 'passed'>): string {
+  if (!p.high) return 'You open: 7 is compulsory, or bid more';
+  if (p.passed && p.passes >= 2) return `You passed. Three in a row: ${p.high.name} plays ${p.high.bid}.`;
+  if (p.passes >= 2) return `${p.passes} of 3 passes · passing now gives ${p.high.name} the bid at ${p.high.bid}`;
+  return `${p.passes} of 3 passes · three in a row give ${p.high.name} the bid at ${p.high.bid}`;
 }
 
 /** "Your call" (07): 7–13 grid, numbers at or under the high bid locked, Pass and Bid. */
 export function BidSheet(props: BidSheetProps) {
   const { high, passes, facts, selected, passed, onSelect, onBid, onPass } = props;
   const min = high ? high.bid + 1 : 7;
-  const bars = high ? 3 : 4;
+  const canPass = high !== null;
 
   useEffect(() => {
     if (passed) return;
@@ -44,7 +40,7 @@ export function BidSheet(props: BidSheetProps) {
       const inGrid = e.target instanceof Element && !!e.target.closest('.bid-grid');
       const n = KEY_TO_BID[e.key];
       if (n !== undefined && n >= min) { onSelect(n); if (inGrid) focusBid(n); }
-      else if (e.key === 'p' || e.key === 'P') onPass();
+      else if ((e.key === 'p' || e.key === 'P') && canPass) onPass();
       else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault();
         const up = e.key === 'ArrowRight' || e.key === 'ArrowDown';
@@ -62,7 +58,7 @@ export function BidSheet(props: BidSheetProps) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [passed, min, selected, onSelect, onPass, onBid]);
+  }, [passed, min, canPass, selected, onSelect, onPass, onBid]);
 
   return (
     <section className="sheet" aria-label="Your call">
@@ -94,12 +90,13 @@ export function BidSheet(props: BidSheetProps) {
       </div>
       <div className="pass-line" aria-live="polite">
         <span className="pass-bars" aria-hidden="true">
-          {Array.from({ length: bars }, (_, i) => <i key={i} className={i < passes + (passed ? 1 : 0) ? 'on' : ''} />)}
+          {Array.from({ length: 3 }, (_, i) => <i key={i} className={i < passes + (passed ? 1 : 0) ? 'on' : ''} />)}
         </span>
         {passLine(props)}
       </div>
       <div className="sheet-btns">
-        <button className={`pass${passed ? ' on' : ''}`} onClick={() => { if (!passed) onPass(); }} aria-pressed={passed}>Pass</button>
+        <button className={`pass${passed ? ' on' : ''}`} onClick={() => { if (!passed && canPass) onPass(); }} aria-pressed={passed}
+          aria-disabled={!canPass || undefined} title={canPass ? undefined : 'The opener must bid'}>Pass</button>
         <button className={`cta${selected !== null && !passed ? '' : ' ghost'}`} aria-disabled={selected === null || passed || undefined}
           onClick={() => { if (selected !== null && !passed) onBid(selected); }}>
           {passed ? 'Passed' : selected !== null ? `Bid ${selected}` : 'Pick a number'}

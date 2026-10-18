@@ -24,7 +24,7 @@ export type Step = 'bid' | 'hukum' | 'play' | 'summary' | 'result' | 'tip' | nul
 /** Clicks unless the element goes away first (online, a sheet closes when the update lands). */
 const tap = (l: Locator) => l.click({ timeout: 3000 }).then(() => true, () => false);
 
-/** One move of a simple human: bid 7 when allowed (if `bid`), else pass; call Hukum; play the first legal card. */
+/** One move of a simple human: open at 7, or bid 7 when allowed (if `bid`), else pass; call Hukum; play the first legal card. */
 export interface StepOptions {
   bid?: boolean;
   /** Called with the screen just found, before the move answers it (audits, screenshots). */
@@ -36,7 +36,9 @@ export async function step(page: Page, opts: StepOptions = {}): Promise<Step> {
   if (await visible(page, '.sheet[aria-label="Your call"]')) {
     await seen('bid');
     const seven = page.locator('.bid-num:has-text("7"):not([aria-disabled])');
-    if (opts.bid && await seven.count()) { if (await tap(seven.first())) await tap(page.locator('.sheet-btns .cta')); }
+    const mustOpen = await page.locator('.sheet-btns .pass[aria-disabled]').count();
+    if (mustOpen) await tap(page.locator('.sheet-btns .cta')); // the compulsory 7 is preselected
+    else if (opts.bid && await seven.count()) { if (await tap(seven.first())) await tap(page.locator('.sheet-btns .cta')); }
     else await tap(page.locator('.sheet-btns .pass'));
     return 'bid';
   }

@@ -175,7 +175,7 @@ function auction(c: Ctx, i: AdaptInput): AuctionView {
   });
   const high = a.high ? { bid: a.high.value, name: c.name(a.high.seat), team: c.vt(teamOf(a.high.seat)) } : null;
   const dock = won
-    ? `${c.name(won.seat)} ${won.seat === c.you ? 'win' : 'wins'} the auction at ${won.value}${won.forced ? ' · forced 7' : ''}`
+    ? `${c.name(won.seat)} ${won.seat === c.you ? 'win' : 'wins'} the auction at ${won.value}${won.forced ? ' · compulsory 7' : ''}`
     : turn === null ? 'Auction closed'
       : turn === c.you ? 'Your call'
         : `${c.name(turn)} is calling${next === c.you ? ' · you’re next' : ''}`;
@@ -183,8 +183,8 @@ function auction(c: Ctx, i: AdaptInput): AuctionView {
     hud: c.phaseHud('Auction', 'auction'),
     seats,
     high,
-    passes: won ? (high ? 3 : 4) : a.consecutivePasses,
-    forcedName: c.name(nextSeat(view.dealer)),
+    passes: won ? 3 : a.consecutivePasses,
+    openerName: c.name(nextSeat(view.dealer)),
     hand: view.phase === 'BIDDING' || view.phase === 'TRUMP_SELECTION' ? view.hand : (i.prev?.hand ?? view.hand),
     yourTurn: !i.busy && bidding && view.turn === c.you,
     dock,

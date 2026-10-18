@@ -15,9 +15,10 @@ export interface AuctionView {
   hud: HudView;
   seats: SeatView[];
   high: { bid: number; name: string; team: Team } | null;
-  /** Passes since the high bid, or since the start when nobody has bid. */
+  /** Passes since the high bid. */
   passes: number;
-  forcedName: string;
+  /** Dealer+1, who must open at 7 or more. */
+  openerName: string;
   hand: CardId[];
   yourTurn: boolean;
   /** Dock status while someone else calls. */
@@ -39,7 +40,8 @@ interface Props {
 
 /** Screens 06 (someone else calling) and 07 / 07b (your bid sheet). */
 export function AuctionScreen({ v, width = 390, height = 844, cardSize = 'M', onBid, onPass, initial }: Props) {
-  const [selected, setSelected] = useState<number | null>(initial?.selected ?? null);
+  // The opener's compulsory 7 is preselected.
+  const [selected, setSelected] = useState<number | null>(initial?.selected ?? (v.high ? null : 7));
   const [passed, setPassed] = useState(initial?.passed ?? false);
   const tableW = width - 24;
   const hand = v.hand.map((card) => ({ card }));
@@ -51,8 +53,8 @@ export function AuctionScreen({ v, width = 390, height = 844, cardSize = 'M', on
         <Table width={tableW} height={fitTable(470, height, PILL_TABLE_MIN)} seats={v.seats} style={TABLE_MARGIN} centre={(g) => (
           <>
             {v.high && <HighBid at={g.C} label="High bid" value={v.high.bid} team={v.high.team} text={v.high.name} />}
-            <RacePill variant="auction" at={g.pill} compact={g.pillCompact} passes={v.passes} of={v.high ? 3 : 4}
-              line={v.high ? 'Three passes in a row close the auction' : `If everyone passes, ${v.forcedName} must play 7`} />
+            <RacePill variant="auction" at={g.pill} compact={g.pillCompact} passes={v.passes} of={3}
+              line={v.high ? 'Three passes in a row close the auction' : `${v.openerName} opens: 7 is compulsory, or more`} />
           </>
         )} />
         <FactChips facts={handFacts(v.hand, { moreCards: 8 })} pad style={{ marginTop: 8 }} />
@@ -82,7 +84,6 @@ export function AuctionScreen({ v, width = 390, height = 844, cardSize = 'M', on
       <BidSheet
         high={v.high}
         passes={v.passes}
-        forcedName={v.forcedName}
         facts={handFacts(v.hand)}
         selected={selected}
         passed={passed}

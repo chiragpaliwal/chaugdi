@@ -18,7 +18,7 @@ import type { SeatView } from '../view/types';
  * made after trick 9, an opponent cuts on trick 5, and you are void on trick 4.
  */
 export const TUTORIAL_SEED = 'practice-0';
-/** Dev deals, so you bid first and you play 7 if everyone passes (GDD §3.4.2). */
+/** Dev deals, so you open the bidding: 7 is compulsory, or bid more. */
 export const TUTORIAL_DEALER: Seat = 3;
 export const TUTORIAL_PLAYERS: Players = {
   names: { 0: 'You', 1: 'Ben', 2: 'Asha', 3: 'Dev' },
@@ -68,8 +68,8 @@ export function nextTip(snap: AnimSnapshot, seen: readonly TipId[], target: numb
       const forced = nextSeat(v.dealer) === YOU;
       return {
         id: 'bid', target: '.sheet', button: 'Got it',
-        title: 'Bid or pass',
-        body: `A bid is how many of the 13 tricks (Sar) you and ${names[2]} will win. Make it: +bid. Miss it: −2 × bid. So bid only when you are more than 2/3 sure.${forced ? ' If everyone passes, you must play 7.' : ''}`,
+        title: forced ? 'Open the bidding' : 'Bid or pass',
+        body: `A bid is how many of the 13 tricks (Sar) you and ${names[2]} will win. Make it: +bid. Miss it: −2 × bid. So bid only when you are more than 2/3 sure.${forced ? ' You sit left of the dealer, so you must open: 7 is compulsory, or bid more.' : ''}`,
       };
     }
   }

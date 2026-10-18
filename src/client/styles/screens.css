@@ -238,3 +238,18 @@
 .online-top { position: absolute; left: 0; right: 0; top: 56px; z-index: 20; }
 .online-bottom { position: absolute; left: 0; right: 0; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 20; display: flex; flex-direction: column; }
 .online-bottom .vote, .online-bottom .toast { box-shadow: inset 0 0 0 1px var(--sar-line), var(--shadow-sheet); }
+
+/* ---------------------------------------------------------------- short screens */
+/* Short screens (a phone browser with its toolbars): a tighter sheet so Pass and Bid stay on screen. */
+@media (max-height: 780px) {
+  .dock { padding-bottom: 10px; }
+  .hint { margin-top: 6px; }
+  .sheet, .sheet.roomy { gap: 8px; padding-top: 12px; }
+  .bid-num { height: 50px; }
+  .suit-tile { height: 64px; }
+  .sheet-btns .pass, .sheet-btns .cta, .sheet > .cta { height: 52px; }
+}
+/* Shorter still: drop what the hand above already shows. */
+@media (max-height: 740px) {
+  .sheet > .facts, .sheet-intro p { display: none; }
+}

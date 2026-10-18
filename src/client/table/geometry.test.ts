@@ -18,6 +18,15 @@ describe('tableGeometry (HANDOFF §3)', () => {
   it('moves the pill to C.y + 120 on shorter tables', () => {
     const g = tableGeometry(366, 440);
     expect(g.pill.y).toBe(g.C.y + 120);
+    expect(g.pillCompact).toBe(false);
+  });
+  it('keeps a compact pill clear of the cross and your seat on a short table', () => {
+    const g = tableGeometry(366, 356);
+    expect(g.pillCompact).toBe(true);
+    const crossBottom = g.slot[0].y + 64;
+    const avatarTop = g.avatar[0].y - 30;
+    expect(g.pill.y - 12).toBeGreaterThanOrEqual(crossBottom); // the chips are 24 tall
+    expect(g.pill.y + 12).toBeLessThanOrEqual(avatarTop);
   });
 });
 

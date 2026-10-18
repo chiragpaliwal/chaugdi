@@ -187,7 +187,7 @@ function OnlineTable({ session, snap, room, width, height, onLeave, onSettings }
 
 function RoomMessage({ width, height, code, title, body, spin, onHome }: { width: number; height: number; code?: string; title: string; body: string; spin?: boolean; onHome: () => void }) {
   return (
-    <main className="menu-scr room-msg" style={{ width, height }} aria-busy={spin || undefined}>
+    <main className="menu-scr room-msg" style={{ width, minHeight: height }} aria-busy={spin || undefined}>
       <header className="lobby-top">
         <button className="icon-btn" aria-label="Home" onClick={onHome}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>

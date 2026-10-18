@@ -40,7 +40,7 @@ export function HomeScreen({ nickname, botLevel, target = 52, footer, joinError,
   const join = () => { if (ready) onJoin?.(code); };
 
   return (
-    <main className="menu-scr" style={{ width, height, paddingBottom: 20 }}>
+    <main className="menu-scr" style={{ width, minHeight: height, paddingBottom: 20 }}>
       <header className="home-top">
         <button className="me-chip" onClick={onNickname}>
           <span className="av" aria-hidden="true">{name.charAt(0).toUpperCase()}</span>Playing as <b>{name}</b><span className="sr-only">. Change nickname</span>

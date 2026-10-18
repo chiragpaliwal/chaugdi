@@ -11,7 +11,7 @@ import { useFeatures } from '../features';
 import { describePlay, IDLE_HINT, illegalReason, isLegal, yourTurnStatus, type StatusParts } from '../table/hints';
 import { handCardWidth, type CardSizeSetting, type ViewSeat } from '../table/geometry';
 import type { RaceView, SeatView, TrickView } from '../view/types';
-import { GameFrame, TABLE_MARGIN, type HudView } from './GameFrame';
+import { GameFrame, TABLE_MARGIN, fitTable, PILL_TABLE_MIN, type HudView } from './GameFrame';
 
 export interface PlayView {
   hud: HudView;
@@ -72,7 +72,7 @@ export function PlayScreen({ v, width = 390, height = 844, cardSize = 'M', onPla
   const tableW = width - 24;
   const narrow = width < 375;
   // HANDOFF §3: 470 in play, 440 while a banner shows.
-  const tableH = v.banner ? 440 : narrow ? 430 : 470;
+  const tableH = fitTable(v.banner ? 440 : narrow ? 430 : 470, height, PILL_TABLE_MIN);
   const yourTurn = v.yourTurn && !v.held;
   const names = Object.fromEntries(v.seats.map((s) => [s.seat, s.name])) as Record<ViewSeat, string>;
   const cards = v.hand.map((card) => ({ card, legal: yourTurn ? isLegal(card, v.hand, v.plays) : true }));
@@ -87,7 +87,7 @@ export function PlayScreen({ v, width = 390, height = 844, cardSize = 'M', onPla
 
   const table = (
     <Table width={tableW} height={tableH} seats={v.seats} trick={v.trick} held={v.held} style={TABLE_MARGIN}
-      centre={(g) => <RacePill variant="race" at={g.pill} race={v.race} />}>
+      centre={(g) => <RacePill variant="race" at={g.pill} compact={g.pillCompact} race={v.race} />}>
       {v.lastTrick && <LastTrickButton onClick={onLastTrick} />}
     </Table>
   );

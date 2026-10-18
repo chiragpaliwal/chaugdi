@@ -47,7 +47,7 @@ export function MatchResultScreen({ v, width = 390, height = 844, onHome, onRema
   }));
 
   return (
-    <main className="result-scr" style={{ width, height }}>
+    <main className="result-scr" style={{ width, minHeight: height }}>
       <div className="mr-confetti" aria-hidden="true">
         {conf.map((c, i) => (
           <i key={i} style={{ left: c.x, top: c.y, width: c.w, height: c.h, background: c.c, animationDelay: `${c.d}ms`, ['--dy' as string]: `${c.dy}px`, ['--rt' as string]: `${c.rt}deg` }} />

@@ -100,7 +100,7 @@ export function LobbyScreen({ v, width = 390, height = 844, onLeave, onFillBot, 
   const partnerOpts = others.map((s) => ({ value: String(s), label: v.seats[s]!.name })).sort((a, b) => a.label.localeCompare(b.label));
 
   return (
-    <main className="menu-scr" style={{ width, height }}>
+    <main className="menu-scr" style={{ width, minHeight: height }}>
       <header className="lobby-top">
         <button className="icon-btn" aria-label="Leave room" onClick={onLeave}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>

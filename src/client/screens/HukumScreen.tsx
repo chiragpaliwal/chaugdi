@@ -8,7 +8,7 @@ import { Table } from '../components/Table';
 import { HukumPickDisc } from '../components/TableCentre';
 import { handWidthFor, type CardSizeSetting } from '../table/geometry';
 import type { SeatView } from '../view/types';
-import { GameFrame, TABLE_MARGIN, type HudView } from './GameFrame';
+import { GameFrame, TABLE_MARGIN, fitTable, SHEET_TABLE_MIN, PILL_TABLE_MIN, type HudView } from './GameFrame';
 
 export interface HukumPickView {
   hud: HudView;
@@ -39,7 +39,7 @@ export function HukumScreen({ v, width = 390, height = 844, cardSize = 'M', init
     const hand = sortHand(v.hand, null).map((card) => ({ card }));
     return (
       <GameFrame width={width} height={height} hud={v.hud}>
-        <Table width={tableW} height={470} seats={v.seats} style={TABLE_MARGIN} />
+        <Table width={tableW} height={fitTable(470, height, PILL_TABLE_MIN)} seats={v.seats} style={TABLE_MARGIN} />
         <HandFan cards={hand} width={tableW} cardWidth={handWidthFor(cardSize, width, hand.length)} hukum={null} shape="deal5" height={126} style={{ margin: '82px 12px 0' }} />
         <div className="dock"><ChatButton /><DockStatus text={`${v.callerName} is choosing Hukum`} /></div>
       </GameFrame>
@@ -49,7 +49,7 @@ export function HukumScreen({ v, width = 390, height = 844, cardSize = 'M', init
   const hand = sortHand(v.hand, suit).map((card) => ({ card }));
   return (
     <GameFrame width={width} height={height} hud={v.hud}>
-      <Table width={tableW} height={300} seats={v.seats} style={TABLE_MARGIN} centre={(g) => <HukumPickDisc at={g.sheetCentre} suit={suit} />} />
+      <Table width={tableW} height={fitTable(300, height, SHEET_TABLE_MIN)} seats={v.seats} style={TABLE_MARGIN} centre={(g) => <HukumPickDisc at={g.sheetCentre} suit={suit} />} />
       <HandFan cards={hand} width={tableW} cardWidth={handWidthFor(cardSize, width, hand.length, true)} hukum={suit} previewHukum shape="deal5" top={14} height={112} style={{ margin: '0 12px' }} />
       <SuitPicker hand={v.hand} bid={v.bid} selected={suit} onPick={setSuit} onConfirm={(s) => onConfirm?.(s)} />
     </GameFrame>

@@ -7,7 +7,7 @@ import { Table } from '../components/Table';
 import { DealTable, DockPath, HukumReveal, Packet, type FlyingBack } from '../components/TableCentre';
 import { FAN_STYLES, fanLayout, type ViewSeat } from '../table/geometry';
 import type { SeatView } from '../view/types';
-import { GameFrame, TABLE_MARGIN, type HudView } from './GameFrame';
+import { GameFrame, TABLE_MARGIN, fitTable, PILL_TABLE_MIN, type HudView } from './GameFrame';
 
 interface DealPill { title: string; line: string; steps: number; done: number; nowFraction: number; label?: string }
 
@@ -30,10 +30,10 @@ export function DealFiveScreen({ v, width = 390, height = 844 }: { v: DealFiveVi
   const mine = v.counts[0];
   return (
     <GameFrame width={width} height={height} hud={v.hud}>
-      <Table width={tableW} height={470} seats={v.seats} style={TABLE_MARGIN} centre={(g) => (
+      <Table width={tableW} height={fitTable(470, height, PILL_TABLE_MIN)} seats={v.seats} style={TABLE_MARGIN} centre={(g) => (
         <>
           <DealTable g={g} dealer={v.dealer} dealerName={dealerName} counts={v.counts} deckLeft={v.deckLeft} flying={v.flying} />
-          <RacePill variant="dealing" at={g.pill} {...v.pill} />
+          <RacePill variant="dealing" at={g.pill} compact={g.pillCompact} {...v.pill} />
         </>
       )} />
       <StatusLine status={{ bold: 'Your 5', text: 'flip face-up once all land' }} style={{ marginTop: 4 }} />
@@ -67,12 +67,12 @@ export function HukumRevealScreen({ v, width = 390, height = 844 }: { v: HukumRe
   const tableW = width - 24;
   return (
     <GameFrame width={width} height={height} hud={v.hud}>
-      <Table width={tableW} height={470} seats={v.seats} style={TABLE_MARGIN} centre={(g) => (
+      <Table width={tableW} height={fitTable(470, height, PILL_TABLE_MIN)} seats={v.seats} style={TABLE_MARGIN} centre={(g) => (
         <>
           {v.dockPath && <DockPath suit={v.hukum} discs={v.dockPath} />}
           <HukumReveal at={{ x: g.C.x, y: g.C.y + 9 }} suit={v.hukum} caller={v.caller.name} team={v.caller.team} />
           {v.packet && <Packet {...v.packet} />}
-          <RacePill variant="dealing" at={g.pill} {...v.pill} />
+          <RacePill variant="dealing" at={g.pill} compact={g.pillCompact} {...v.pill} />
         </>
       )} />
       <StatusLine status={{ bold: 'Your hand', text: v.handNote }} style={{ marginTop: 4 }} />

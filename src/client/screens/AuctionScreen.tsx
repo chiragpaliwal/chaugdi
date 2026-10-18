@@ -9,7 +9,7 @@ import { Table } from '../components/Table';
 import { handFacts } from '../table/facts';
 import { handWidthFor, type CardSizeSetting } from '../table/geometry';
 import type { SeatView } from '../view/types';
-import { GameFrame, TABLE_MARGIN, type HudView } from './GameFrame';
+import { GameFrame, TABLE_MARGIN, fitTable, PILL_TABLE_MIN, SHEET_TABLE_MIN, type HudView } from './GameFrame';
 
 export interface AuctionView {
   hud: HudView;
@@ -48,10 +48,10 @@ export function AuctionScreen({ v, width = 390, height = 844, cardSize = 'M', on
     const w = handWidthFor(cardSize, width, hand.length);
     return (
       <GameFrame width={width} height={height} hud={v.hud}>
-        <Table width={tableW} height={470} seats={v.seats} style={TABLE_MARGIN} centre={(g) => (
+        <Table width={tableW} height={fitTable(470, height, PILL_TABLE_MIN)} seats={v.seats} style={TABLE_MARGIN} centre={(g) => (
           <>
             {v.high && <HighBid at={g.C} label="High bid" value={v.high.bid} team={v.high.team} text={v.high.name} />}
-            <RacePill variant="auction" at={g.pill} passes={v.passes} of={v.high ? 3 : 4}
+            <RacePill variant="auction" at={g.pill} compact={g.pillCompact} passes={v.passes} of={v.high ? 3 : 4}
               line={v.high ? 'Three passes in a row close the auction' : `If everyone passes, ${v.forcedName} must play 7`} />
           </>
         )} />
@@ -77,7 +77,7 @@ export function AuctionScreen({ v, width = 390, height = 844, cardSize = 'M', on
 
   return (
     <GameFrame width={width} height={height} hud={v.hud}>
-      <Table width={tableW} height={300} seats={seats} style={TABLE_MARGIN} centre={(g) => centre && <HighBid at={g.sheetCentre} compact {...centre} />} />
+      <Table width={tableW} height={fitTable(300, height, SHEET_TABLE_MIN)} seats={seats} style={TABLE_MARGIN} centre={(g) => centre && <HighBid at={g.sheetCentre} compact {...centre} />} />
       <HandFan cards={hand} width={tableW} cardWidth={handWidthFor(cardSize, width, hand.length, true)} hukum={null} shape="deal5" top={14} height={112} style={{ margin: '0 12px' }} />
       <BidSheet
         high={v.high}

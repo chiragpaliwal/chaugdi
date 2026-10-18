@@ -62,7 +62,7 @@ export function RoundSummaryScreen({ v, width = 390, height = 844, onReady, onHi
   const readyCount = readyList.filter((r) => r.ready).length;
 
   return (
-    <main className="result-scr" style={{ width, height }}>
+    <main className="result-scr" style={{ width, minHeight: height }}>
       <span className="k-label">Round {v.roundNo} · {early ? `ended after trick ${v.tricksPlayed}` : 'all 13 tricks'}</span>
       <h1>{teamNames[bidder.team]}<span className={made ? 'ok' : 'bad'}>{made ? 'made' : 'missed'} {b}.</span></h1>
       <p className="story">{v.story}</p>

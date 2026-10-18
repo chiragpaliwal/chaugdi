@@ -40,7 +40,7 @@ export function SettingsScreen({ width = 390, height = 844, onBack }: { width?: 
   };
 
   return (
-    <main className="menu-scr" style={{ width, height }}>
+    <main className="menu-scr" style={{ width, minHeight: height }}>
       <header className="menu-top">
         <button className="icon-btn" aria-label="Back" onClick={onBack}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>

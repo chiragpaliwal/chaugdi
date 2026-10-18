@@ -21,6 +21,8 @@ export interface TableGeometry {
   slot: Record<ViewSeat, Point>;
   /** Centre of the RacePill. */
   pill: Point;
+  /** A short table only has room for the pill's chips (no line, dots or bars). */
+  pillCompact: boolean;
   /** Centre of the auction/Hukum readout on a 300-tall table (cy + 14, BidSheet board). */
   sheetCentre: Point;
 }
@@ -31,6 +33,10 @@ export const TRICK_OFFSET: Record<ViewSeat, Point> = { 0: { x: 0, y: 58 }, 1: { 
 export const TRICK_ROTATION: Record<ViewSeat, number> = { 0: 0, 1: -4, 2: 3, 3: 5 };
 
 const SEATS: ViewSeat[] = [0, 1, 2, 3];
+/** Avatar radius with its turn ring. */
+const AVATAR_R = 30;
+/** Shortest table with room for the full RacePill (chips, line and dots) above your seat. */
+export const PILL_FULL_H = 412;
 
 export function tableGeometry(W: number, H: number): TableGeometry {
   const cx = W / 2;
@@ -51,9 +57,13 @@ export function tableGeometry(W: number, H: number): TableGeometry {
     seatBox[i] = { x: p.x - SEAT_COLUMN_W / 2, y: p.y - 21 };
     slot[i] = { x: C.x + TRICK_OFFSET[i].x - TRICK_W / 2, y: C.y + TRICK_OFFSET[i].y - TRICK_H / 2 };
   }
-  // Never inside the cross: 131 below C at H 470, 120 when the table is shorter.
-  const pill = { x: C.x, y: C.y + (H >= 470 ? 131 : 120) };
-  return { avatar, seatBox, C, slot, pill, sheetCentre: { x: C.x, y: Math.round(cy + 14) } };
+  // Never inside the cross: 131 below C at H 470, 120 when the table is shorter. Below
+  // PILL_FULL_H only the chips fit, centred between the cross and your seat's avatar.
+  const pillCompact = H < PILL_FULL_H;
+  const pillY = H >= 470 ? C.y + 131 : !pillCompact ? C.y + 120
+    : Math.round((C.y + TRICK_OFFSET[0].y + TRICK_H / 2 + avatar[0].y - AVATAR_R) / 2);
+  const pill = { x: C.x, y: pillY };
+  return { avatar, seatBox, C, slot, pill, pillCompact, sheetCentre: { x: C.x, y: Math.round(cy + 14) } };
 }
 
 // ---------------------------------------------------------------- hand fan

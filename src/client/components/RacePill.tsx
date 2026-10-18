@@ -4,10 +4,11 @@ import type { RaceView } from '../view/types';
 
 const other = (t: Team): Team => (t === 'A' ? 'B' : 'A');
 
-type Props =
+/** `compact`: the chips only, for a short table (TableGeometry.pillCompact). */
+type Props = { compact?: boolean } & (
   | { variant: 'race'; at: Point; race: RaceView }
   | { variant: 'auction'; at: Point; passes: number; of?: number; line: string }
-  | { variant: 'dealing'; at: Point; title: string; line: string; steps: number; done: number; nowFraction: number; label?: string };
+  | { variant: 'dealing'; at: Point; title: string; line: string; steps: number; done: number; nowFraction: number; label?: string });
 
 /**
  * The one centre readout (HANDOFF §1 rule 2). Race: "[■ 8 to make][● 6 to break]",
@@ -15,11 +16,12 @@ type Props =
  */
 export function RacePill(props: Props) {
   const style = { left: props.at.x, top: props.at.y };
+  const cls = props.compact ? 'pill compact' : 'pill';
 
   if (props.variant === 'auction') {
     const of = props.of ?? 3;
     return (
-      <div className="pill" style={style} aria-live="polite">
+      <div className={cls} style={style} aria-live="polite">
         <span className="chip">{props.passes} of {of} passes</span>
         <span className="t">{props.line}</span>
         <span className="bars" aria-hidden="true">
@@ -32,7 +34,7 @@ export function RacePill(props: Props) {
   if (props.variant === 'dealing') {
     const pct = Math.round(props.nowFraction * 100);
     return (
-      <div className="pill" style={style} aria-live="polite">
+      <div className={cls} style={style} aria-live="polite">
         <span className="chip">{props.title}</span>
         <span className="t">{props.line}</span>
         <span className={`bars${props.steps <= 2 ? ' wide' : ''}`} aria-label={props.label}>
@@ -54,7 +56,7 @@ export function RacePill(props: Props) {
     { text: `${r.toBreak} to break`, team: other(r.bidderTeam), value: r.toBreak },
   ];
   return (
-    <div className="pill" style={style} aria-live="polite" aria-label={r.aria}>
+    <div className={cls} style={style} aria-live="polite" aria-label={r.aria}>
       <div className="race">
         {halves.map((h) => (
           <span key={h.text} className={h.value <= 2 ? 'hot' : ''}>

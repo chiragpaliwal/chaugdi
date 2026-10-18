@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { cleanNickname } from '../../shared/nickname';
 import { isRoomCode } from '../../shared/roomCode';
 import { standing } from '../../engine/types';
@@ -19,9 +19,24 @@ const OnlineRoom = lazy(() => import('./OnlineRoom'));
 
 /** Phone-width column centred on larger screens; 100dvh (GDD §13). */
 function Frame({ children }: { children: (size: { width: number; height: number }) => React.ReactNode }) {
-  const width = Math.min(window.innerWidth, 430);
-  const height = Math.max(window.innerHeight, 640);
+  const { width, height } = useViewport();
   return <div style={{ display: 'flex', justifyContent: 'center', minHeight: '100dvh' }}>{children({ width, height })}</div>;
+}
+
+const viewport = () => ({ width: Math.min(window.innerWidth, 430), height: Math.max(window.innerHeight, 640) });
+
+/** Follows the window: mobile browsers change its height as their toolbars show and hide. */
+function useViewport() {
+  const [size, setSize] = useState(viewport);
+  useEffect(() => {
+    const onResize = () => setSize((s) => {
+      const n = viewport();
+      return n.width === s.width && n.height === s.height ? s : n;
+    });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return size;
 }
 
 export function App() {

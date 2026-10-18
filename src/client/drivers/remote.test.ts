@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apply, createLobby } from '../../engine/reducer';
 import { viewFor } from '../../engine/view';
 import { DEFAULT_CONFIG, type PlayerView, type Seat } from '../../engine/types';
@@ -14,36 +14,41 @@ type Listener = (e: { data?: unknown; code?: number }) => void;
 function fakeSocket() {
   const on: Record<string, Listener[]> = {};
   const sent: Record<string, unknown>[] = [];
+  /** Raw heartbeat pings, kept apart from JSON messages. */
+  let pings = 0;
   const s = {
+    get pings() { return pings; },
     readyState: 0,
     closed: false,
     reconnects: 0,
-    send: (d: string) => { sent.push(JSON.parse(d)); },
+    send: (d: string) => { if (d === 'ping') pings++; else sent.push(JSON.parse(d)); },
     close: () => { s.closed = true; s.readyState = 3; },
     reconnect: () => { s.reconnects++; },
     addEventListener: (t: string, fn: Listener) => { (on[t] ??= []).push(fn); },
     open() { s.readyState = 1; for (const f of on.open ?? []) f({}); },
     drop(code = 1006) { s.readyState = 3; for (const f of on.close ?? []) f({ code }); },
     feed(m: ServerMessage) { for (const f of on.message ?? []) f({ data: JSON.stringify(m) }); },
+    pong() { for (const f of on.message ?? []) f({ data: 'pong' }); },
   };
   return { s, sent };
 }
 
-function setup() {
+function setup(opts: { heartbeat?: boolean } = {}) {
   let now = 1_000_000;
   const { s, sent } = fakeSocket();
   let unauthorized = 0;
+  let query: (() => Promise<Record<string, string>>) | null = null;
   const driver = new RemoteDriver({
     code: 'K7QXM',
     auth: async () => ({ token: 't', name: 'Asha' }),
     onUnauthorized: () => { unauthorized++; },
-    socket: () => s as unknown as SocketLike,
+    socket: (q) => { query = q; return s as unknown as SocketLike; },
     now: () => now,
-    heartbeat: false,
+    heartbeat: opts.heartbeat ?? false,
   });
   const updates: DriverUpdate[] = [];
   driver.subscribe((u) => updates.push(u));
-  return { driver, s, sent, updates, advance: (ms: number) => { now += ms; }, get now() { return now; }, get unauthorized() { return unauthorized; } };
+  return { driver, s, sent, updates, query: () => query!(), advance: (ms: number) => { now += ms; }, get now() { return now; }, get unauthorized() { return unauthorized; } };
 }
 
 const started = apply(createLobby(DEFAULT_CONFIG), { type: 'START_MATCH', seed: 'remote-test', dealer: 0 });
@@ -193,5 +198,94 @@ describe('online table extras', () => {
     const after = room({ seats: { ...room().seats, 1: { ...room().seats[1]!, control: 'dropped' } } });
     expect(newlyDropped(before, after)).toEqual([1]);
     expect(onlineLayer(ctx({ room: after, dropped: 1 })).toast?.title).toBe('Ben left.');
+  });
+});
+
+describe('heartbeat', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  /** Heartbeat on, with fake timers so only the test drives it. */
+  function beating() {
+    vi.useFakeTimers();
+    const t = setup({ heartbeat: true });
+    t.s.open();
+    /** One second passes and the heartbeat runs. */
+    const second = () => { t.advance(1000); t.driver.heartbeat(); };
+    return { ...t, second };
+  }
+
+  it('pings every second without waiting for pongs, and a raw pong is not a message', () => {
+    const t = beating();
+    for (let i = 0; i < 5; i++) t.second();
+    expect(t.s.pings).toBe(5);
+    t.s.pong();
+    expect(t.s.reconnects).toBe(0);
+    expect(t.driver.getRoom().error).toBeNull();
+    t.driver.destroy();
+  });
+
+  it('reconnects only after 3 unanswered pings and 8 s of silence', () => {
+    const t = beating();
+    // Held-back frames: pongs arrive late, in a burst, before the 8 s are up.
+    for (let i = 0; i < 7; i++) t.second();
+    t.s.pong();
+    for (let i = 0; i < 7; i++) t.second();
+    expect(t.s.reconnects).toBe(0);
+    // Truly silent: dead after 8 s with 3+ misses.
+    for (let i = 0; i < 2; i++) t.second();
+    expect(t.s.reconnects).toBe(1);
+    t.driver.destroy();
+  });
+
+  it('probes right after a move and nudges after any message', () => {
+    const t = beating();
+    t.s.feed({ type: 'sync', room: room(), view: view(0, 1), seq: 1, serverNow: t.now });
+    t.driver.send({ type: 'pass' });
+    expect(t.s.pings).toBe(1);
+    vi.advanceTimersByTime(250);
+    expect(t.s.pings).toBe(2);
+    t.driver.destroy();
+  });
+
+  it('tells the server why it connects, which attempt and the last seq seen', async () => {
+    const t = setup();
+    expect(await t.query()).toMatchObject({ reason: 'initial', attempt: '1', since: '0' });
+    t.s.open();
+    t.s.feed({ type: 'sync', room: room(), view: view(0, 7), seq: 7, serverNow: t.now });
+    t.s.drop(1006);
+    expect(await t.query()).toMatchObject({ reason: 'close-1006', attempt: '1', since: '7' });
+    expect(await t.query()).toMatchObject({ attempt: '2' });
+  });
+
+  it('retries after a stale sweep (4100) and stops on a final code', () => {
+    const t = setup();
+    t.s.open();
+    t.s.drop(4100);
+    expect(t.driver.getRoom().closed).toBeNull();
+    expect(t.driver.getRoom().conn).toBe('reconnecting');
+    t.s.drop(4004);
+    expect(t.driver.getRoom().closed).toBe('notFound');
+  });
+});
+
+describe('refusals', () => {
+  it('a ROOM_NOT_FOUND error closes for good without waiting for the close code', () => {
+    const t = setup();
+    t.s.open();
+    t.s.feed({ type: 'error', code: 'ROOM_NOT_FOUND', message: 'ROOM_NOT_FOUND', refSeq: 0 });
+    expect(t.driver.getRoom().closed).toBe('notFound');
+    expect(t.s.closed).toBe(true);
+  });
+
+  it('an UNAUTHORIZED error retries once as a new guest, then closes', () => {
+    const t = setup();
+    t.s.open();
+    t.s.feed({ type: 'error', code: 'UNAUTHORIZED', message: 'UNAUTHORIZED', refSeq: 0 });
+    expect(t.unauthorized).toBe(1);
+    expect(t.s.reconnects).toBe(1);
+    expect(t.driver.getRoom().closed).toBeNull();
+    t.s.open();
+    t.s.feed({ type: 'error', code: 'UNAUTHORIZED', message: 'UNAUTHORIZED', refSeq: 0 });
+    expect(t.driver.getRoom().closed).toBe('unauthorized');
   });
 });

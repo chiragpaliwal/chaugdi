@@ -104,7 +104,11 @@ export type ErrorCode =
 /** `serverNow` lets the client correct for clock skew before showing `turnDeadline`. */
 export type ServerMessage =
   | { type: 'sync'; room: RoomView; view: PlayerView | null; seq: number; serverNow: number }
-  | { type: 'update'; seq: number; view: PlayerView; events: GameEvent[]; animBudgetMs: number; serverNow: number }
+  /**
+   * `offsetMs`: a bot move the server played ahead (one alarm for a run of bot moves). The
+   * client starts it this long after the update arrives, as if it had arrived then.
+   */
+  | { type: 'update'; seq: number; view: PlayerView; events: GameEvent[]; animBudgetMs: number; serverNow: number; offsetMs?: number }
   | { type: 'lobby'; room: RoomView; serverNow: number }
   | { type: 'error'; code: ErrorCode; message: string; refSeq: number }
   | { type: 'presence'; seat: Seat; connected: boolean; isBot: boolean; control: SeatControl }

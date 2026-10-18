@@ -16,6 +16,8 @@ export interface DriverUpdate {
   events: GameEvent[];
   animBudgetMs: number;
   players: Players;
+  /** Start this long after the update arrives (a bot move the server played ahead). */
+  offsetMs?: number;
 }
 
 export interface GameDriver {

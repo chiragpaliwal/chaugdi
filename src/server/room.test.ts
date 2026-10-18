@@ -236,12 +236,12 @@ describe('match', () => {
     expect(h.room$('ben').you).toBe(1);
   });
 
-  it('starts the turn timer only after the animation budget', () => {
+  it('starts the turn timer only after the animation budget (and a bot run’s start offset)', () => {
     const h = started(['host']);
     // Find the host's first turn.
     while (h.room.state.match!.round!.turn !== 0) h.tick();
     const u = h.last('host', 'update')!;
-    expect(u.view.turnDeadline).toBe(h.now + u.animBudgetMs + 20_000);
+    expect(u.view.turnDeadline).toBe(h.now + (u.offsetMs ?? 0) + u.animBudgetMs + 20_000);
   });
 
   it('rejects out-of-turn moves with the error code and the client seq', () => {
@@ -405,5 +405,93 @@ describe('disconnects', () => {
     h.connect('host');
     expect(h.room$('host').seats[0]?.control).toBe('human');
     expect(h.room.state.turnDeadline).toBe(h.now + 20_000);
+  });
+});
+
+describe('alarms', () => {
+  it('never arms for a time that is not in the future', () => {
+    const h = started(['host', 'ben']);
+    for (let i = 0; i < 300 && h.room.state.match!.phase !== 'MATCH_END'; i++) {
+      const at = h.room.nextAlarm();
+      if (at !== null) expect(at).toBeGreaterThan(h.now);
+      expect(h.room.stuck()).toBeNull();
+      if (!h.tick()) break;
+    }
+  });
+
+  it('drops a summary timer left over outside the summary', () => {
+    const h = started(['host']);
+    h.room.state.continueAt = h.now - 1;
+    expect(h.room.stuck()).toBe(h.now - 1);
+    h.room.alarm();
+    expect(h.room.state.continueAt).toBeNull();
+    expect(h.room.stuck()).toBeNull();
+  });
+
+  it('closes an idle lobby after 30 min even with a socket open', () => {
+    const h = harness({ humans: ['host'] });
+    h.advance(29 * 60_000);
+    h.send('host', { type: 'setReady', ready: true });
+    h.advance(29 * 60_000);
+    expect(h.closed).toBe(false);
+    h.advance(2 * 60_000);
+    expect(h.closed).toBe(true);
+    expect(h.last('host', 'closed')).toEqual({ type: 'closed', reason: 'idle' });
+    expect(h.room.nextAlarm()).toBeNull();
+  });
+
+  it('closes an idle results screen with sockets open, but never a match in progress', () => {
+    const h = started(['host']);
+    // Nobody acts: timeouts hand the seat to a bot, and the room stays open however long the match runs.
+    for (let i = 0; i < 20_000 && h.room.state.match!.phase !== 'MATCH_END'; i++) {
+      if (h.room.state.match!.phase === 'ROUND_EVAL') h.send('host', { type: 'continue' });
+      else h.tick();
+      expect(h.closed).toBe(false);
+    }
+    expect(h.room.state.match!.phase).toBe('MATCH_END');
+    h.advance(29 * 60_000);
+    expect(h.closed).toBe(false);
+    h.advance(2 * 60_000);
+    expect(h.closed).toBe(true);
+  });
+});
+
+describe('bot runs', () => {
+  /** Plays the host's turns at once until `n` alarms have fired. */
+  function alarmsFor(level: 'medium' | 'hard') {
+    const h = harness({ humans: ['host'], bots: [1, 2, 3] });
+    h.send('host', { type: 'hostSettings', botLevel: level });
+    h.send('host', { type: 'start' });
+    h.advance(ONLINE.startSeconds * 1000);
+    let alarms = 0;
+    for (let i = 0; i < 400 && h.room.state.match!.history.length < 1; i++) {
+      const m = h.room.state.match!;
+      const move = m.phase === 'ROUND_EVAL' ? ({ type: 'continue' } as const) : humanMove(h, 'host');
+      if (move) h.send('host', move);
+      else if (h.tick()) alarms++;
+    }
+    return { h, alarms };
+  }
+
+  it('plays a run of bot moves in one alarm, each with the offset its own alarm would have had', () => {
+    const { h } = alarmsFor('medium');
+    const updates = h.msgs('host').filter((m): m is Msg<'update'> => m.type === 'update');
+    const ahead = updates.filter((u) => (u.offsetMs ?? 0) > 0);
+    expect(ahead.length).toBeGreaterThan(10);
+    // Offsets within one batch grow: each move starts after the previous one's animation and think time.
+    for (let i = 1; i < updates.length; i++) {
+      const [a, b] = [updates[i - 1]!, updates[i]!];
+      if ((b.offsetMs ?? 0) > 0 && a.serverNow === b.serverNow) {
+        expect(b.offsetMs!).toBeGreaterThanOrEqual((a.offsetMs ?? 0) + a.animBudgetMs);
+      }
+    }
+  });
+
+  it('cuts alarms per round at least in half; hard bots keep one move per alarm', () => {
+    const medium = alarmsFor('medium');
+    const hard = alarmsFor('hard');
+    const moves = (h: H) => h.msgs('host').filter((m) => m.type === 'update').length;
+    expect(medium.alarms).toBeLessThan(moves(medium.h) / 2);
+    expect(hard.h.msgs('host').some((m) => m.type === 'update' && (m.offsetMs ?? 0) > 0)).toBe(false);
   });
 });

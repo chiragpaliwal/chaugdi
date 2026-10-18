@@ -138,12 +138,62 @@ describe('AnimQueue', () => {
     expect(q.getSnapshot().busy).toBe(false);
   });
 
-  it('skips ahead when more than two updates are queued', () => {
+  it('plays a small backlog in catch-up time instead of skipping it', () => {
+    let now = 0;
+    const frames: (() => void)[] = [];
+    const d = fakeDriver();
+    const q = new AnimQueue(d, { speed: () => 'normal', now: () => now, frame: (f) => frames.push(f) });
+    const card = { t: 'cardPlayed', seat: 1, card: 'AS' } as const;
+    // The first update starts at normal speed before the burst lands behind it.
+    for (let r = 1; r <= 5; r++) d.push({ view: view(r), players, animBudgetMs: 360, events: [card] });
+    expect(q.getSnapshot().view.roundNo).toBe(1);
+    expect(q.getSnapshot().playing?.durationMs).toBe(360);
+    now = 360; frames.shift()!();
+    // Four behind: half speed, floored so a card still lands (250 ms). Back to normal
+    // once no more than three are queued.
+    const durations: number[] = [];
+    while (q.getSnapshot().playing) {
+      durations.push(q.getSnapshot().playing!.durationMs);
+      now += q.getSnapshot().playing!.durationMs;
+      frames.shift()!();
+    }
+    expect(durations).toEqual([250, 360, 360, 360]);
+    expect(q.getSnapshot().view.roundNo).toBe(5);
+    expect(q.getSnapshot().busy).toBe(false);
+  });
+
+  it('waits for a bot move’s start offset, keeping input closed, and does not count it as behind', () => {
+    let now = 0;
+    const frames: (() => void)[] = [];
+    const d = fakeDriver();
+    const q = new AnimQueue(d, { speed: () => 'normal', now: () => now, frame: (f) => frames.push(f) });
+    const card = { t: 'cardPlayed', seat: 1, card: 'AS' } as const;
+    // A run of five bot moves arrives at once, each due 2 s after the last.
+    for (let r = 1; r <= 5; r++) d.push({ view: view(r), players, animBudgetMs: 360, events: [card], offsetMs: (r - 1) * 2000 });
+    expect(q.getSnapshot().playing?.durationMs).toBe(360);
+    const started: number[] = [];
+    for (let i = 0; i < 2000 && frames.length; i++) {
+      now += 50;
+      const before = q.getSnapshot().view.roundNo;
+      frames.shift()!();
+      const s = q.getSnapshot();
+      if (s.playing && s.view.roundNo !== before) {
+        started.push(now);
+        // On schedule, so never catch-up speed.
+        expect(s.playing.durationMs).toBe(360);
+      }
+      if (!s.playing && s.view.roundNo < 5) expect(s.busy).toBe(true);
+    }
+    expect(started).toEqual([2000, 4000, 6000, 8000]);
+    expect(q.getSnapshot().busy).toBe(false);
+  });
+
+  it('skips ahead when more than twelve updates are queued', () => {
     const d = fakeDriver();
     const q = new AnimQueue(d, { speed: () => 'normal', now: () => 0, frame: () => {} });
     const bid = { t: 'bid', seat: 1, value: 7 } as const;
-    for (let r = 1; r <= 4; r++) d.push({ view: view(r), players, animBudgetMs: 300, events: [bid] });
-    expect(q.getSnapshot().view.roundNo).toBe(4);
+    for (let r = 1; r <= 14; r++) d.push({ view: view(r), players, animBudgetMs: 300, events: [bid] });
+    expect(q.getSnapshot().view.roundNo).toBe(14);
     expect(q.getSnapshot().busy).toBe(false);
   });
 

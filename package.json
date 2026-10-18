@@ -16,6 +16,7 @@
     "db:migrate": "wrangler d1 migrations apply chaugadi --local",
     "cf-typegen": "wrangler types src/server/worker-configuration.d.ts",
     "e2e:server": "npm run db:migrate && node e2e/server.mjs",
+    "e2e:race": "npm run db:migrate && node e2e/reconnect-race.mjs",
     "db:migrate:e2e-dev": "wrangler d1 migrations apply chaugadi --local --persist-to .wrangler/e2e-dev"
   },
   "dependencies": {

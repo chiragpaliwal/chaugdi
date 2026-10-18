@@ -19,6 +19,13 @@ import type {
 /** Hard bots on the server: a fixed sample count, because the Workers clock stands still during CPU work. */
 export const SERVER_BOT = { samples: 60, bidSamples: 100 };
 
+/**
+ * Most bot moves one alarm plays ahead (free-tier budget: every alarm is a billed request
+ * and two rows written). A run stops at a human's turn, so this is only a backstop. Hard
+ * bots cost ~70 ms CPU a move, so they keep one move per alarm.
+ */
+export const BOT_RUN_MAX = 12;
+
 export interface SeatState {
   /** null for a bot the host added. */
   playerId: string | null;
@@ -58,7 +65,14 @@ export interface RoomState {
   /** Players who tapped Continue on this round summary. */
   continued: string[];
   away: (Away | null)[];
+  /** No connections since: the room closes at this time. */
   idleCleanupAt: number | null;
+  /**
+   * The last player action (connect, message, match end). Outside a match the room closes
+   * `idleCleanupMs` after it even with sockets open: a tab left on the lobby or the
+   * results must not keep the room alive forever. Missing in rooms saved before it existed.
+   */
+  lastActivityAt?: number;
   closed: boolean;
 }
 
@@ -99,6 +113,7 @@ export function newRoomState(code: string, hostId: string, now: number): RoomSta
     away: [null, null, null, null],
     // A room nobody joins closes like an abandoned one.
     idleCleanupAt: now + ONLINE.idleCleanupMs,
+    lastActivityAt: now,
     closed: false,
   };
 }
@@ -106,6 +121,11 @@ export function newRoomState(code: string, hostId: string, now: number): RoomSta
 export class Room {
   private fx: Effects = { out: [], db: [], close: false };
   private lobbyDirty = false;
+  /**
+   * During a bot run: how far ahead of the real clock the table is. Bot moves played ahead
+   * go out at once, each with this start offset, and timers count from it.
+   */
+  private lead = 0;
 
   constructor(public state: RoomState, private readonly deps: RoomDeps) {}
 
@@ -118,6 +138,7 @@ export class Room {
       const wasPaused = !this.humansOnline();
       if (!s.online.includes(playerId)) s.online.push(playerId);
       s.idleCleanupAt = null;
+      s.lastActivityAt = this.now();
       let repace = false;
       const seat = this.seatOf(playerId);
       if (seat !== null) {
@@ -168,6 +189,7 @@ export class Room {
 
   message(playerId: string, m: ClientMessage): Effects {
     return this.run(() => {
+      if (m.type !== 'ping') this.state.lastActivityAt = this.now();
       try {
         this.handle(playerId, m);
       } catch (e) {
@@ -180,23 +202,46 @@ export class Room {
     });
   }
 
-  /** Runs every timer that is due. */
+  /** Runs every timer that is due (every entry point does; see `run`). */
   alarm(): Effects {
-    return this.run(() => {
-      for (let guard = 0; guard < 16; guard++) {
-        if (!this.runDue()) break;
-      }
-    });
+    return this.run(() => {});
   }
 
-  /** The earliest pending deadline, for the Durable Object's single alarm slot. */
+  /**
+   * The earliest future deadline, for the Durable Object's single alarm slot. A deadline
+   * that is already past was not consumed by `alarm()`: that is a bug (see `stuck`), and
+   * re-arming for it would fire the alarm in a loop.
+   */
   nextAlarm(): number | null {
-    const s = this.state;
-    const all = [s.idleCleanupAt, s.startingAt, ...s.away.map((a) => a?.until ?? null)];
-    // With no human connected the room pauses: bots do not play on alone (GDD §10.6).
-    if (this.humansOnline()) all.push(s.turnDeadline, s.botMoveAt, s.continueAt);
-    const due = all.filter((t): t is number => t !== null);
+    const now = this.now();
+    const due = this.deadlines().filter((t) => t > now);
     return due.length ? Math.min(...due) : null;
+  }
+
+  /** A deadline `alarm()` should act on is already past: the Durable Object logs it. */
+  stuck(): number | null {
+    const now = this.now();
+    const past = this.deadlines().filter((t) => t <= now);
+    return past.length ? Math.min(...past) : null;
+  }
+
+  /** A match is being played (not over): the socket sweep runs only then. */
+  inMatch() { const p = this.state.match?.phase; return !!p && p !== 'LOBBY' && p !== 'MATCH_END'; }
+
+  /** Every deadline `runDue` can act on right now. */
+  private deadlines(): number[] {
+    const s = this.state;
+    const all = [s.idleCleanupAt, this.idleExpiry(), s.startingAt, ...s.away.map((a) => a?.until ?? null)];
+    // With no human connected the room pauses: bots do not play on alone (GDD §10.6).
+    if (this.humansOnline() && s.match) all.push(s.turnDeadline, s.botMoveAt, s.continueAt);
+    return all.filter((t): t is number => t !== null);
+  }
+
+  /** Outside a match, a room with sockets open still closes after `idleCleanupMs` without activity. */
+  private idleExpiry(): number | null {
+    const s = this.state;
+    if (s.online.length === 0 || this.inMatch()) return null;
+    return (s.lastActivityAt ?? s.createdAt) + ONLINE.idleCleanupMs;
   }
 
   /** What the join screen needs (GET /api/rooms/:code). */
@@ -387,7 +432,7 @@ export class Room {
     const s = this.state;
     const now = this.now();
     const due = (t: number | null) => t !== null && t <= now;
-    if (due(s.idleCleanupAt)) {
+    if (due(s.idleCleanupAt) || due(this.idleExpiry())) {
       s.closed = true;
       s.idleCleanupAt = null;
       this.fx.close = true;
@@ -411,10 +456,27 @@ export class Room {
       st.afkStrikes++;
       if (st.afkStrikes >= ONLINE.afkStrikes) { st.afk = true; this.presence(seat); this.lobbyDirty = true; }
       this.botMove(seat);
+      this.botRun();
       return true;
     }
-    if (due(s.botMoveAt)) { this.botMove(s.match.round!.turn!); return true; }
+    if (due(s.botMoveAt)) { this.botMove(s.match.round!.turn!); this.botRun(); return true; }
     return false;
+  }
+
+  /**
+   * Plays the bot moves that follow, ahead of time, until a human's turn (or the round
+   * ends). Each goes out now with the start offset it would have had with its own alarm,
+   * so the table looks the same and the run costs one alarm.
+   */
+  private botRun() {
+    const s = this.state;
+    if (s.settings.botLevel === 'hard') return;
+    const now = this.now();
+    for (let k = 1; k < BOT_RUN_MAX && s.botMoveAt !== null && s.match && LIVE.has(s.match.phase); k++) {
+      this.lead = s.botMoveAt - now;
+      this.botMove(s.match.round!.turn!);
+    }
+    this.lead = 0;
   }
 
   /** The hold ran out or the vote said bot: in a match a bot plays; in the lobby the seat frees. */
@@ -471,7 +533,8 @@ export class Room {
 
   private nextRound() {
     const m = this.state.match;
-    if (m?.phase !== 'ROUND_EVAL') return;
+    // A summary timer left over outside the summary must not stay due.
+    if (m?.phase !== 'ROUND_EVAL') { this.state.continueAt = null; return; }
     this.commit(apply(m, { type: 'NEXT_ROUND' }));
   }
 
@@ -507,6 +570,8 @@ export class Room {
         { op: 'matchEnd', id: s.matchId, at: this.now(), winner: over.winner, reason: over.reason, ledger: state.ledger },
         { op: 'roomStatus', code: s.code, status: 'open' },
       );
+      // The idle clock for the results screen starts when the match ends.
+      s.lastActivityAt = this.now();
       this.lobbyDirty = true;
     }
     this.publish(events);
@@ -523,10 +588,11 @@ export class Room {
     this.schedule(budget);
     s.seq++;
     const serverNow = this.now();
+    const offset = this.lead > 0 ? { offsetMs: this.lead } : {};
     for (const p of s.online) {
       const seat = this.seatOf(p);
       if (seat === null || p === except) continue;
-      this.send(p, { type: 'update', seq: s.seq, view: this.view(seat), events, animBudgetMs: budget, serverNow });
+      this.send(p, { type: 'update', seq: s.seq, view: this.view(seat), events, animBudgetMs: budget, serverNow, ...offset });
     }
   }
 
@@ -540,7 +606,8 @@ export class Room {
     const summaryAt = s.continueAt;
     s.turnDeadline = s.botMoveAt = s.continueAt = null;
     if (!m) return;
-    const now = this.now();
+    // In a bot run, the table is `lead` ms ahead of the real clock.
+    const now = this.now() + this.lead;
     if (m.phase === 'ROUND_EVAL') {
       // A refresh during the summary keeps its countdown and the Continue taps so far.
       if (summaryAt !== null && budgetMs === 0) { s.continueAt = summaryAt; return; }
@@ -614,7 +681,13 @@ export class Room {
   private run(fn: () => void): Effects {
     this.fx = { out: [], db: [], close: false };
     this.lobbyDirty = false;
+    this.lead = 0;
     fn();
+    // Every entry point runs the timers that are due, so a message that lands before a late
+    // alarm cannot leave a past deadline behind. The cap keeps bot moves from spinning.
+    for (let guard = 0; guard < 200 && !this.state.closed; guard++) {
+      if (!this.runDue()) break;
+    }
     const s = this.state;
     // Any lobby change that breaks the start condition cancels the countdown.
     if (s.startingAt !== null && !this.canStart()) { s.startingAt = null; this.lobbyDirty = true; }
@@ -646,8 +719,6 @@ export class Room {
 
   /** No match yet: the room is gathering players. */
   private inLobby() { return !this.state.match || this.state.match.phase === 'LOBBY'; }
-  /** A match is being played (not over). */
-  private inMatch() { const p = this.state.match?.phase; return !!p && p !== 'LOBBY' && p !== 'MATCH_END'; }
   private isTurn(seat: Seat) { const m = this.state.match; return !!m && LIVE.has(m.phase) && m.round?.turn === seat; }
 
   private control(seat: Seat): SeatControl {

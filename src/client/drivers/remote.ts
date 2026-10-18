@@ -51,11 +51,32 @@ export interface RemoteDriverOptions {
 
 const OPEN = 1;
 const GAME = new Set(['bid', 'pass', 'chooseTrump', 'play']);
-const HEARTBEAT_MS = 10_000;
-const SILENT_MS = 25_000;
 
-/** Close codes from the GameRoom (game-room.ts). */
+/**
+ * Heartbeat (docs/MULTIPLAYER_LESSONS.md §2). The runtime answers the raw "ping" without
+ * waking the room. Pings never wait for pongs: on a phone in Wi-Fi power-save, incoming
+ * frames are held until the phone sends something, so the next ping is what releases them.
+ */
+export const HEARTBEAT = {
+  /** Ping interval while the table is visible, and while the tab is hidden. */
+  visibleMs: 1_000,
+  hiddenMs: 10_000,
+  /** A ping this long after each of our own messages pulls in the reply. */
+  nudgeMs: 250,
+  /** Dead only after this many unanswered pings and this long with nothing received. */
+  misses: 3,
+  silentMs: 8_000,
+} as const;
+
+/**
+ * Close codes from the GameRoom (game-room.ts). These are final; any other code retries,
+ * including 1000 `superseded` (an old socket of this page) and 4100 `stale` (the server
+ * swept a silent socket).
+ */
 const CLOSE: Record<number, ClosedReason> = { 4000: 'idle', 4001: 'unauthorized', 4004: 'notFound' };
+
+/** Why this connect happens, sent as a query param for the server's `connect` log. */
+type ConnectReason = 'initial' | 'heartbeat' | 'online' | 'refused' | `close-${number}`;
 
 function partySocket(code: string, query: () => Promise<Record<string, string>>): SocketLike {
   return new PartySocket({
@@ -66,6 +87,14 @@ function partySocket(code: string, query: () => Promise<Record<string, string>>)
     query,
     // A move sent while offline is stale by the time the socket is back.
     maxEnqueuedMessages: 0,
+    // The defaults (3 s → 10 s backoff, 5 s uptime, 4 s connect) suit servers, not phones:
+    // every blip became seconds of "Reconnecting". Far colos and weak Wi-Fi need 8 s to connect.
+    maxRetries: Infinity,
+    minReconnectionDelay: 250,
+    maxReconnectionDelay: 3_000,
+    reconnectionDelayGrowFactor: 1.5,
+    minUptime: 2_000,
+    connectionTimeout: 8_000,
   }) as unknown as SocketLike;
 }
 
@@ -79,21 +108,34 @@ export class RemoteDriver implements GameDriver {
   private watchers = new Set<() => void>();
   private snap: RoomSnapshot = { conn: 'connecting', room: null, skew: 0, droppedAt: null, closed: null, error: null, hasView: false };
   private lastHeard = 0;
+  private lastPing = 0;
+  /** Pings sent since we last heard anything. */
+  private misses = 0;
   private beat: ReturnType<typeof setInterval> | null = null;
+  private nudge: ReturnType<typeof setTimeout> | null = null;
+  private reason: ConnectReason = 'initial';
+  /** Connect attempts since the last open. */
+  private attempt = 0;
   private refusals = 0;
   private destroyed = false;
 
   constructor(opts: RemoteDriverOptions) {
     this.opts = opts;
+    // Called on every (re)connect, so the params are fresh each time.
     const query = async () => {
       const { token, name } = await opts.auth();
-      return { token, name };
+      this.attempt++;
+      return { token, name, reason: this.reason, attempt: String(this.attempt), since: String(this.seq) };
     };
     this.socket = (opts.socket ?? ((q) => partySocket(opts.code, q)))(query);
     this.socket.addEventListener('open', this.onOpen);
     this.socket.addEventListener('close', this.onClose);
     this.socket.addEventListener('message', this.onMessage);
-    if (opts.heartbeat !== false) this.beat = setInterval(this.heartbeat, HEARTBEAT_MS);
+    if (opts.heartbeat !== false) {
+      // Its own timer, never driven by incoming traffic: the server only hears us through it.
+      this.beat = setInterval(this.heartbeat, HEARTBEAT.visibleMs);
+      if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVisible);
+    }
     if (typeof window !== 'undefined') window.addEventListener('online', this.onOnline);
   }
 
@@ -104,7 +146,7 @@ export class RemoteDriver implements GameDriver {
     if (this.last) {
       cb(this.last);
       // A later subscriber sees the current view without replaying old events.
-      this.last = { ...this.last, events: [], animBudgetMs: 0 };
+      this.last = { ...this.last, events: [], animBudgetMs: 0, offsetMs: 0 };
     }
     return () => { this.listeners.delete(cb); };
   }
@@ -115,13 +157,16 @@ export class RemoteDriver implements GameDriver {
       if (this.pending || this.snap.conn !== 'open') return;
       this.pending = true;
     }
-    this.message(intent as ClientMessage);
+    // A probe right after a move pulls the server's reply in at once.
+    if (this.message(intent as ClientMessage) && GAME.has(intent.type) && this.beat) this.ping();
   }
 
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
     if (this.beat) clearInterval(this.beat);
+    if (this.nudge) clearTimeout(this.nudge);
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.onVisible);
     if (typeof window !== 'undefined') window.removeEventListener('online', this.onOnline);
     this.socket.close(1000, 'bye');
     this.listeners.clear();
@@ -141,6 +186,9 @@ export class RemoteDriver implements GameDriver {
   message(m: ClientMessage): boolean {
     if (this.destroyed || this.socket.readyState !== OPEN) return false;
     this.socket.send(JSON.stringify({ ...m, seq: this.seq }));
+    if (this.beat && !this.nudge) {
+      this.nudge = setTimeout(() => { this.nudge = null; this.ping(); }, HEARTBEAT.nudgeMs);
+    }
     return true;
   }
 
@@ -165,40 +213,86 @@ export class RemoteDriver implements GameDriver {
 
   private onOpen = () => {
     this.lastHeard = this.now();
+    this.misses = 0;
+    this.attempt = 0;
     this.set({ conn: 'open', droppedAt: null });
   };
 
   private onClose = (e: { code?: number }) => {
     if (this.destroyed) return;
     this.pending = false;
+    // partysocket's own closes (from `reconnect()`) carry no numeric code: keep our reason.
+    if (typeof e.code === 'number') this.reason = `close-${e.code}`;
     const reason = CLOSE[e.code ?? 0];
-    if (reason === 'unauthorized' && this.refusals++ === 0) {
-      // A refused token gets one retry as a new guest.
-      this.opts.onUnauthorized?.();
-    } else if (reason) {
-      this.socket.close();
-      this.set({ closed: reason });
-      return;
-    }
+    if (reason && this.refuse(reason)) return;
     if (this.snap.conn !== 'reconnecting') this.set({ conn: 'reconnecting', droppedAt: this.now() });
   };
 
+  /**
+   * The server refused this socket. True when that is final; a refused token gets one
+   * retry as a new guest. `reconnect` forces that retry when the refusal came as a message
+   * (the close that follows it can be slow to arrive).
+   */
+  private refuse(reason: ClosedReason, reconnect = false): boolean {
+    if (reason === 'unauthorized' && this.refusals++ === 0) {
+      this.opts.onUnauthorized?.();
+      if (reconnect) {
+        this.reason = 'refused';
+        this.socket.reconnect();
+      }
+      return false;
+    }
+    this.socket.close();
+    this.set({ closed: reason });
+    return true;
+  }
+
   private onOnline = () => {
-    if (!this.destroyed && this.socket.readyState !== OPEN) this.socket.reconnect();
+    if (this.destroyed) return;
+    if (this.socket.readyState !== OPEN) {
+      this.reason = 'online';
+      this.socket.reconnect();
+    } else {
+      this.ping();
+    }
   };
 
-  private heartbeat = () => {
+  private onVisible = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') this.ping();
+  };
+
+  /** A raw "ping": the runtime answers "pong" without waking the room. */
+  private ping() {
     if (this.destroyed || this.socket.readyState !== OPEN) return;
-    const quiet = this.now() - this.lastHeard;
-    if (quiet > SILENT_MS) this.socket.reconnect();
-    else if (quiet > HEARTBEAT_MS) this.message({ type: 'ping' });
+    this.socket.send('ping');
+    this.lastPing = this.now();
+    this.misses++;
+  }
+
+  /** Runs every second: pings on schedule, and reconnects a socket that has gone dead. */
+  heartbeat = () => {
+    if (this.destroyed || this.socket.readyState !== OPEN) return;
+    const now = this.now();
+    if (this.misses >= HEARTBEAT.misses && now - this.lastHeard > HEARTBEAT.silentMs) {
+      // Half-open: the server resends the full state when we join again.
+      this.misses = 0;
+      this.reason = 'heartbeat';
+      this.socket.reconnect();
+      return;
+    }
+    const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    const every = hidden ? HEARTBEAT.hiddenMs : HEARTBEAT.visibleMs;
+    // Small slack: interval timers drift a few ms.
+    if (now - this.lastPing >= every - 50) this.ping();
   };
 
   private onMessage = (e: { data?: unknown }) => {
     if (this.destroyed || typeof e.data !== 'string') return;
+    this.lastHeard = this.now();
+    this.misses = 0;
+    if (e.data === 'pong') return;
     let m: ServerMessage;
     try { m = JSON.parse(e.data) as ServerMessage; } catch { return; }
-    this.lastHeard = this.now();
     this.receive(m);
   };
 
@@ -223,7 +317,7 @@ export class RemoteDriver implements GameDriver {
         }
         this.seq = m.seq;
         this.pending = false;
-        this.push({ view: m.view, events: m.events, animBudgetMs: m.animBudgetMs });
+        this.push({ view: m.view, events: m.events, animBudgetMs: m.animBudgetMs, ...(m.offsetMs ? { offsetMs: m.offsetMs } : {}) });
         this.set({ skew: m.serverNow - this.now(), hasView: true });
         return;
       }
@@ -239,9 +333,13 @@ export class RemoteDriver implements GameDriver {
       }
       case 'error':
         this.pending = false;
+        // The server sends these just before it closes the socket: act on them at once.
+        if (m.code === 'ROOM_NOT_FOUND') { this.refuse('notFound'); return; }
+        if (m.code === 'UNAUTHORIZED') { this.refuse('unauthorized', true); return; }
         this.set({ error: { code: m.code, message: m.message, at: this.now() } });
         return;
       case 'pong':
+        // The JSON pong answers a resync ping; the heartbeat's raw pong never gets here.
         this.set({ skew: m.serverNow - this.now() });
         return;
       case 'closed':
@@ -254,7 +352,7 @@ export class RemoteDriver implements GameDriver {
     const update: DriverUpdate = { ...u, players: playersOf(u.view) };
     this.last = update;
     for (const cb of this.listeners) cb(update);
-    if (this.listeners.size) this.last = { ...update, events: [], animBudgetMs: 0 };
+    if (this.listeners.size) this.last = { ...update, events: [], animBudgetMs: 0, offsetMs: 0 };
   }
 }
 

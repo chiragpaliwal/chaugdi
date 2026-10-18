@@ -1,9 +1,12 @@
 // Animation queue (GDD §11.3). Each driver update's events play one after another,
-// then its view shows. Input is open only when the queue is empty. More than two
-// updates behind (a background tab), it drops the queued animations and jumps ahead.
+// then its view shows. Input is open only when the queue is empty. On a slow or bursty
+// link updates arrive several at once: behind by a few, it plays them faster (catch-up);
+// far behind, it drops the queued animations and jumps ahead
+// (docs/MULTIPLAYER_LESSONS.md §6). A bot move the server played ahead carries a start
+// offset: it waits until then, so a run of bot moves keeps its thinking pauses.
 
 import type { GameEvent, PlayerView } from '../../engine/types';
-import { scaledEventMs, type MotionSpeed } from '../../shared/constants';
+import { MOTION, scaledEventMs, type MotionSpeed } from '../../shared/constants';
 import type { DriverUpdate, GameDriver, Players } from '../drivers/types';
 
 export interface Playing {
@@ -27,7 +30,28 @@ export interface AnimSnapshot {
 
 /** Events whose frames change while they play; the rest render once. */
 const CONTINUOUS = new Set<GameEvent['t']>(['dealt', 'trickWon']);
-const MAX_BEHIND = 2;
+
+/** Catch-up starts this many updates behind, or when the next update has waited this long. */
+export const CATCH_UP = { behind: 3, waitedMs: 3_000, scale: 0.5 } as const;
+/** More than this many queued: skip the replay and show the latest view. */
+export const FLUSH_BEHIND = 12;
+
+/**
+ * Catch-up floors: a card still lands before the next one replaces it, and a won trick
+ * still registers before it sweeps.
+ */
+const FLOOR: Partial<Record<GameEvent['t'], number>> = {
+  bid: 150, pass: 150, cardPlayed: 250, trickWon: MOTION.trickHold + 100,
+};
+
+/** One event's duration in catch-up: faster, never below its floor, never slower than normal. */
+function catchUpMs(e: GameEvent, normal: number): number {
+  if (normal === 0) return 0;
+  return Math.min(normal, Math.max(FLOOR[e.t] ?? 0, Math.round(normal * CATCH_UP.scale)));
+}
+
+/** `dueAt`: when it should start (arrival plus the server's start offset). */
+interface Queued { update: DriverUpdate; dueAt: number }
 
 interface Current { update: DriverUpdate; prev: PlayerView | null; index: number; startedAt: number; durations: number[]; fired: number }
 
@@ -42,13 +66,15 @@ export interface AnimQueueOptions {
 
 export class AnimQueue {
   private readonly opts: AnimQueueOptions;
-  private queue: DriverUpdate[] = [];
+  private queue: Queued[] = [];
   private current: Current | null = null;
   private shown: DriverUpdate | null = null;
   private snapshot: AnimSnapshot | null = null;
   private listeners = new Set<() => void>();
   private eventListeners = new Set<EventListener>();
   private looping = false;
+  /** Waiting for the head of the queue to come due. */
+  private waiting = false;
   private unsubscribe: () => void;
 
   constructor(driver: GameDriver, opts: AnimQueueOptions) {
@@ -69,6 +95,7 @@ export class AnimQueue {
   };
 
   destroy() {
+    this.waiting = false;
     this.unsubscribe();
     this.listeners.clear();
     this.eventListeners.clear();
@@ -81,23 +108,59 @@ export class AnimQueue {
   private now() { return this.opts.now?.() ?? performance.now(); }
 
   private push(u: DriverUpdate) {
-    this.queue.push(u);
-    if (this.queue.length > MAX_BEHIND) {
+    const now = this.now();
+    this.queue.push({ update: u, dueAt: now + (u.offsetMs ?? 0) });
+    // Updates still waiting on their offset are on schedule, not behind.
+    if (this.queue.filter((q) => q.dueAt <= now).length > FLUSH_BEHIND) {
       // Skip ahead: show the latest view without its animations.
       this.current = null;
-      this.shown = this.queue[this.queue.length - 1]!;
+      this.waiting = false;
+      this.shown = this.queue[this.queue.length - 1]!.update;
       this.queue = [];
       this.emit();
       return;
     }
-    if (!this.current) this.next();
+    if (!this.current && !this.waiting) this.next();
+  }
+
+  /** Behind enough that queued updates should play faster. */
+  private catchingUp(next: Queued): boolean {
+    const now = this.now();
+    const due = this.queue.filter((q) => q.dueAt <= now).length;
+    return due > CATCH_UP.behind || now - next.dueAt > CATCH_UP.waitedMs;
+  }
+
+  /** Waits (busy, input closed) until the head of the queue is due, then plays on. */
+  private wait() {
+    this.waiting = true;
+    this.emit();
+    const tick = () => {
+      if (!this.waiting) return;
+      const head = this.queue[0];
+      if (head && head.dueAt > this.now()) return this.frame(tick);
+      this.waiting = false;
+      this.next();
+    };
+    this.frame(tick);
+  }
+
+  private frame(cb: () => void) {
+    if (this.opts.frame) return this.opts.frame(cb);
+    // rAF stops in a hidden tab; the timeout keeps the queue moving.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') setTimeout(cb, 100);
+    else requestAnimationFrame(() => cb());
   }
 
   private next() {
     while (this.queue.length) {
-      const update = this.queue.shift()!;
+      if (this.queue[0]!.dueAt > this.now()) { this.current = null; this.wait(); return; }
+      const fast = this.catchingUp(this.queue[0]!);
+      const { update } = this.queue.shift()!;
       const speed = this.opts.speed();
-      const durations = update.events.map((e) => scaledEventMs(e, speed));
+      const durations = update.events.map((e) => {
+        const ms = scaledEventMs(e, speed);
+        return fast ? catchUpMs(e, ms) : ms;
+      });
       if (durations.some((d) => d > 0)) {
         this.current = { update, prev: this.shown?.view ?? null, index: 0, startedAt: this.now(), durations, fired: 0 };
         this.skipZero();
@@ -124,11 +187,7 @@ export class AnimQueue {
   private loop() {
     if (this.looping) return;
     this.looping = true;
-    const frame = this.opts.frame ?? ((cb: () => void) => {
-      // rAF stops in a hidden tab; the timeout keeps the queue moving.
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') setTimeout(cb, 100);
-      else requestAnimationFrame(() => cb());
-    });
+    const frame = (cb: () => void) => this.frame(cb);
     const tick = () => {
       const c = this.current;
       if (!c) { this.looping = false; return; }
@@ -149,7 +208,7 @@ export class AnimQueue {
 
   private emit() {
     const c = this.current;
-    const base = c?.update ?? this.shown ?? this.queue[0]!;
+    const base = c?.update ?? this.shown ?? this.queue[0]!.update;
     let playing: Playing | null = null;
     if (c) {
       const event = c.update.events[c.index]!;
@@ -157,7 +216,7 @@ export class AnimQueue {
       const ordinal = c.update.events.slice(0, c.index).filter((e) => e.t === event.t).length;
       playing = { event, durationMs, ordinal, progress: Math.min(1, Math.max(0, (this.now() - c.startedAt) / durationMs)) };
     }
-    this.snapshot = { view: base.view, prev: c ? c.prev : null, players: base.players, playing, busy: !!c || this.queue.length > 0 };
+    this.snapshot = { view: base.view, prev: c ? c.prev : null, players: base.players, playing, busy: !!c || this.waiting || this.queue.length > 0 };
     for (const cb of this.listeners) cb();
   }
 }

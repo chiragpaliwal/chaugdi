@@ -94,6 +94,25 @@ test('a killed tab rejoins its seat; the others vote a bot in meanwhile', async 
   await ben.context.close();
 });
 
+test('a 6 s network outage mid-match recovers quickly and keeps the seat', async ({ browser }) => {
+  const { asha, ben } = await startRoom(browser);
+  const errors = [collectErrors(asha.page), collectErrors(ben.page)];
+  await ben.context.setOffline(true);
+  await ben.page.waitForTimeout(6_000);
+  await ben.context.setOffline(false);
+  // The heartbeat or the online event brings the socket back within a few seconds.
+  const back = Date.now();
+  await expect(asha.page.getByRole('status', { name: /ben is reconnecting/i })).toHaveCount(0, { timeout: 10_000 });
+  expect(Date.now() - back).toBeLessThan(10_000);
+  await expect(asha.page.getByText('Ben left.')).toHaveCount(0);
+  // Ben still plays his own seat: the table moves on with both acting.
+  let steps = 0;
+  await playBoth([asha.page, ben.page], (s) => (steps += s.filter((x) => x !== null).length) >= 4 || s.includes('summary') || s.includes('result'), 60_000);
+  for (const e of errors) e();
+  await asha.context.close();
+  await ben.context.close();
+});
+
 test('joining a code with no room explains, and a room link without a nickname asks for one', async ({ page }) => {
   await openApp(page, { nickname: 'Cara' } as never);
   await page.getByLabel(/room code/i).fill('ZZZZZ');

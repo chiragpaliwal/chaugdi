@@ -2,9 +2,10 @@
 
 import { canPass, legalBidValues } from '../auction';
 import { partnerOf, SUITS, type Action, type CardId, type PlayerView, type Seat, type Suit } from '../types';
-import { estimateOdds, evaluateHand, pickBid, type BidPolicy } from './bid';
+import { estimateOdds, evaluateHand, modelMean, modelOdds, pickBid, type AuctionSignals, type BidPolicy } from './bid';
 import { contextFromView } from './memory';
-import { bidOdds, hardPlay, type Budget } from './mc';
+import { bidOdds, hardPlay, type Budget, type WorkStats } from './mc';
+import { easyPlay } from './play-easy';
 import { mediumPlay } from './play-medium';
 
 export type BotLevel = 'easy' | 'medium' | 'hard';
@@ -27,6 +28,10 @@ export interface BotOptions {
   samples?: number;
   /** Override the level's bidding policy (tuning). */
   bidPolicy?: BidPolicy;
+  /** Hard: bid by simulating deals instead of the fitted model (the old way; tests). */
+  mcBidding?: boolean;
+  /** Counts Hard's simulated work (bench, server batching). */
+  stats?: WorkStats;
 }
 
 /**
@@ -90,26 +95,62 @@ function decideBid(view: PlayerView, level: BotLevel, opts: BotOptions): Intent 
   return v === null ? { type: 'pass' } : { type: 'bid', value: v };
 }
 
+/**
+ * The five cards do not change during the auction, so each (hand, trump) is simulated once
+ * per round: bid turns and the trump choice share the result. Losing it (a new Worker or a
+ * hibernated room) only means simulating again.
+ */
+const oddsCache = new Map<string, number[]>();
+function cachedOdds(view: PlayerView, trump: Suit, samples: number, opts: BotOptions): number[] {
+  const key = `${view.roundNo}|${view.you}|${[...view.hand].sort().join('')}|${trump}|${samples}`;
+  let odds = oddsCache.get(key);
+  if (!odds) {
+    odds = bidOdds(view, trump, samples, opts.rng, opts.stats);
+    if (oddsCache.size >= 32) oddsCache.delete(oddsCache.keys().next().value!);
+    oddsCache.set(key, odds);
+  }
+  return odds;
+}
+
+/** Bids made of a seat's own accord: every bid but the opener's compulsory first call. */
+function auctionSignals(view: PlayerView): AuctionSignals {
+  const p = partnerOf(view.you);
+  const bidders = new Set(view.auction.log.filter((e, i) => e.kind === 'bid' && i > 0).map((e) => e.seat));
+  return { partnerBid: bidders.has(p), opponentBids: [...bidders].filter((s) => s !== p && s !== view.you).length };
+}
+
 /** Hard's P(team ≥ b) for its best trump. */
 function bestOdds(view: PlayerView, opts: BotOptions): number[] {
+  if (!opts.mcBidding) {
+    const sig = auctionSignals(view);
+    return modelOdds(view.hand, hardTrump(view, sig), sig);
+  }
   const samples = opts.bidSamples ?? 200;
   let best: number[] = [];
   let bestScore = -1;
   for (const s of SUITS) {
-    const odds = bidOdds(view, s, samples, opts.rng);
+    const odds = cachedOdds(view, s, samples, opts);
     const score = odds.reduce((a, b) => a + b, 0); // expected tricks
     if (score > bestScore) { bestScore = score; best = odds; }
   }
   return best;
 }
 
+/** The suit with the most expected tricks under the bid model; ties keep evaluateHand's choice. */
+function hardTrump(view: PlayerView, sig: AuctionSignals): Suit {
+  let best = evaluateHand(view.hand).trump;
+  for (const s of SUITS) if (modelMean(view.hand, s, sig) > modelMean(view.hand, best, sig) + 1e-9) best = s;
+  return best;
+}
+
 function decideTrump(view: PlayerView, level: BotLevel, opts: BotOptions): Suit {
   if (level !== 'hard') return evaluateHand(view.hand).trump;
-  const samples = Math.max(50, Math.floor((opts.bidSamples ?? 200) / 2));
+  if (!opts.mcBidding) return hardTrump(view, auctionSignals(view));
+  const samples = opts.bidSamples ?? 200;
   let best: Suit = evaluateHand(view.hand).trump;
   let bestScore = -1;
   for (const s of SUITS) {
-    const score = bidOdds(view, s, samples, opts.rng).reduce((a, b) => a + b, 0);
+    const score = cachedOdds(view, s, samples, opts).reduce((a, b) => a + b, 0);
     if (score > bestScore) { bestScore = score; best = s; }
   }
   return best;
@@ -117,10 +158,7 @@ function decideTrump(view: PlayerView, level: BotLevel, opts: BotOptions): Suit 
 
 function decidePlay(view: PlayerView, level: BotLevel, opts: BotOptions): CardId {
   if (view.legal.length === 1) return view.legal[0]!;
-  if (level === 'easy') {
-    if (opts.rng() < 0.35) return view.legal[Math.floor(opts.rng() * view.legal.length)]!;
-    return mediumPlay(contextFromView(view, false));
-  }
+  if (level === 'easy') return easyPlay(view.you, view.hand, view.current?.plays ?? [], view.trump!, opts.rng);
   if (level === 'medium') return mediumPlay(contextFromView(view));
   const budget: Budget = {
     rng: opts.rng,
@@ -128,6 +166,7 @@ function decidePlay(view: PlayerView, level: BotLevel, opts: BotOptions): CardId
     budgetMs: opts.samples !== undefined ? 0 : opts.budgetMs ?? 120,
     maxSamples: opts.samples ?? 150,
     minSamples: opts.samples ?? 30,
+    stats: opts.stats,
   };
   return hardPlay(view, budget);
 }

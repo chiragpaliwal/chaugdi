@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { decide, type BotLevel } from '../bots';
-import { evaluateHand, ownFive } from '../bots/bid';
+import { bidFeatures, evaluateHand, modelOdds, ownFive } from '../bots/bid';
+import { easyPlay } from '../bots/play-easy';
 import { contextFromView, isEffectiveMaster, type PlayContext } from '../bots/memory';
-import { sampleDeal } from '../bots/mc';
+import { equivalenceClasses, sampleDeal } from '../bots/mc';
 import { discard, mediumPlay } from '../bots/play-medium';
 import { apply, newMatch } from '../reducer';
 import { rngFrom } from '../rng';
@@ -62,6 +63,53 @@ describe('Medium card play (GDD §9.2)', () => {
   it('never discards a master while another card is left', () => {
     expect(discard(ctx({ hand: ['AC', '7H', '9H'] }))).toBe('7H');
     expect(isEffectiveMaster('KC', ctx({ hand: ['KC'], played: new Set(['AC']) }))).toBe(true);
+  });
+});
+
+describe('Medium+ rules (bot plan Phase 2)', () => {
+  const def = { contract: { seat: 1 as Seat, team: 'B' as const, bid: 8, forced: false } };
+  it('3rd hand wins with the lowest card the last hand cannot beat', () => {
+    // ♥A is played, so ♥K is the master: it wins where ♥T could lose to the last hand.
+    const plays = [{ seat: 2 as Seat, card: '4H' as CardId }, { seat: 3 as Seat, card: '9H' as CardId }];
+    expect(mediumPlay(ctx({ hand: ['KH', 'TH', '2C'], plays, played: new Set(['AH', '4H', '9H']) }))).toBe('KH');
+  });
+  it('leads a suit partner is void in so partner can cut', () => {
+    const voids: PlayContext['voids'] = [0, 0, 4, 0]; // partner (seat 2) void in ♦
+    expect(mediumPlay(ctx({ ...def, hand: ['9D', '3D', 'QH', '5H', '7H'], voids }))).toBe('3D');
+  });
+  it('does not lead away from a king while the ace is out', () => {
+    expect(mediumPlay(ctx({ ...def, hand: ['KH', '4H', '3H', '9D', '6D'] }))).toBe('6D');
+  });
+  it('on the bidding team, draws trumps with a low one when it holds as many as are out', () => {
+    // ♠8 3 2 are out and ♠7 is not the master, so it leads its lowest trump.
+    const played = new Set<CardId>(['AS', 'KS', 'QS', 'JS', 'TS', '9S'] as CardId[]);
+    expect(mediumPlay(ctx({ hand: ['7S', '6S', '5S', '4S', 'KH', '3D'], played }))).toBe('4S');
+  });
+});
+
+describe('Easy: greedy beginner (bot plan Phase 3)', () => {
+  it('leads an ace, wins high when it can, and cuts even over its partner', () => {
+    expect(easyPlay(0, ['AD', '3C', '9H'], [], 'S', rngFrom('e'))).toBe('AD');
+    expect(easyPlay(0, ['KH', 'QH', '2H'], [{ seat: 3, card: 'JH' }], 'S', rngFrom('e'))).toBe('KH');
+    const partnerWins = [{ seat: 1 as Seat, card: '2D' as CardId }, { seat: 2 as Seat, card: 'AD' as CardId }, { seat: 3 as Seat, card: '5D' as CardId }];
+    expect(easyPlay(0, ['QS', '3S', '7H'], partnerWins, 'S', rngFrom('e'))).toBe('3S');
+  });
+});
+
+describe('Hard search helpers', () => {
+  it('groups touching cards, counting played ranks as touching', () => {
+    const cls = equivalenceClasses(['9H', 'TH', 'QH', '2C'], ['9H', 'TH', 'QH', '2C'], new Set(['JH'] as CardId[]));
+    expect(cls).toEqual([['2C'], ['9H', 'TH', 'QH']]);
+  });
+});
+
+describe('Hard bid model (bot plan Phase 5)', () => {
+  it('rates a long, high trump suit above a short one, and partner support above none', () => {
+    const five: CardId[] = ['AS', 'KS', 'QS', '4S', '7D'];
+    const none = { partnerBid: false, opponentBids: 0 };
+    expect(modelOdds(five, 'S', none)[8]!).toBeGreaterThan(modelOdds(five, 'D', none)[8]!);
+    expect(modelOdds(five, 'S', { partnerBid: true, opponentBids: 0 })[9]!).toBeGreaterThan(modelOdds(five, 'S', none)[9]!);
+    expect(bidFeatures(five, 'S', none).length).toBe(13);
   });
 });
 

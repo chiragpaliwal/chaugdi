@@ -16,10 +16,11 @@ const THINK_MS = 3000;
 
 interface Cost { minutes: number; rounds: number; messages: number; alarms: number; requests: number; rowsWritten: number }
 
-function playMatch(humans: string[], botLevel: BotLevel): Cost {
+/** One match; `salt` varies the room's seeds (and so the cards). */
+function playMatch(humans: string[], botLevel: BotLevel, salt = ''): Cost {
   let now = 1_700_000_000_000;
   let n = 0;
-  const room = new Room(newRoomState('K7QXM', humans[0]!, now), { now: () => now, randomSeed: () => `${++n}`.padStart(32, 'a') });
+  const room = new Room(newRoomState('K7QXM', humans[0]!, now), { now: () => now, randomSeed: () => `${salt}${++n}`.padStart(32, 'a') });
   const c = { messages: 0, alarms: 0, rows: 0 };
   let saved = '';
   let armed: number | null = null;
@@ -85,23 +86,34 @@ function playMatch(humans: string[], botLevel: BotLevel): Cost {
   };
 }
 
-describe('free-tier cost per short match', () => {
+describe('free-tier cost per round', () => {
   const rows: string[] = [];
+  /** Matches per case. Match length swings a lot with the cards, so budgets are per round. */
+  const SEEDS = 4;
   const cases: [string, string[], BotLevel, { requests: number; rowsWritten: number }][] = [
-    // Budgets: what the match cost when measured (2026-10-18, humans deciding like Medium) plus
-    // ~15%. Raising one is a decision: rows written cap the free tier at ~100k / budget matches a day.
-    ['1 human, 3 medium bots', ['a'], 'medium', { requests: 93, rowsWritten: 355 }],
-    ['2 humans, 2 medium bots', ['a', 'b'], 'medium', { requests: 128, rowsWritten: 575 }],
-    ['4 humans', ['a', 'b', 'c', 'd'], 'medium', { requests: 55, rowsWritten: 245 }],
-    ['2 humans, 2 hard bots', ['a', 'b'], 'hard', { requests: 156, rowsWritten: 530 }],
+    // Budgets: cost per round averaged over 12 seeded matches, measured 2026-10-18 (humans
+    // deciding like Medium), plus ~15%. Raising one is a decision: rows written cap the free
+    // tier at ~100k / (budget × rounds per match) matches a day. Hard bots batch their runs
+    // since 2026-10-18, which took them from 26–37 requests and 88–99 rows a round to the
+    // Medium level.
+    ['1 human, 3 medium bots', ['a'], 'medium', { requests: 14.5, rowsWritten: 56 }],
+    ['2 humans, 2 medium bots', ['a', 'b'], 'medium', { requests: 16.2, rowsWritten: 74 }],
+    ['4 humans', ['a', 'b', 'c', 'd'], 'medium', { requests: 15.1, rowsWritten: 73 }],
+    ['2 humans, 2 hard bots', ['a', 'b'], 'hard', { requests: 15.9, rowsWritten: 73 }],
+    ['1 human, 3 hard bots', ['a'], 'hard', { requests: 14.5, rowsWritten: 56 }],
   ];
   for (const [name, humans, level, budget] of cases) {
     it(`${name}: within budget`, () => {
-      const c = playMatch(humans, level);
-      rows.push(`${name.padEnd(24)} ${c.minutes.toFixed(1).padStart(5)} min ${String(c.rounds).padStart(3)} rounds | ${String(c.messages).padStart(4)} msgs ${String(c.alarms).padStart(4)} alarms → ${String(c.requests).padStart(4)} requests | ${String(c.rowsWritten).padStart(4)} rows written | ~${Math.floor(100_000 / Math.max(c.requests, c.rowsWritten))} matches/day`);
-      expect(c.requests).toBeLessThanOrEqual(budget.requests);
-      expect(c.rowsWritten).toBeLessThanOrEqual(budget.rowsWritten);
-    }, 60_000);
+      let rounds = 0, minutes = 0, messages = 0, alarms = 0, requests = 0, rowsWritten = 0;
+      for (let i = 0; i < SEEDS; i++) {
+        const c = playMatch(humans, level, `s${i}`);
+        rounds += c.rounds; minutes += c.minutes; messages += c.messages; alarms += c.alarms; requests += c.requests; rowsWritten += c.rowsWritten;
+      }
+      const perRound = { requests: requests / rounds, rowsWritten: rowsWritten / rounds };
+      rows.push(`${name.padEnd(24)} ${(minutes / SEEDS).toFixed(1).padStart(5)} min ${(rounds / SEEDS).toFixed(1).padStart(5)} rounds/match | per round: ${(messages / rounds).toFixed(1).padStart(5)} msgs ${(alarms / rounds).toFixed(1).padStart(5)} alarms → ${perRound.requests.toFixed(1).padStart(5)} requests | ${perRound.rowsWritten.toFixed(1).padStart(5)} rows written | ~${Math.floor(100_000 / Math.max(perRound.requests, perRound.rowsWritten))} rounds/day`);
+      expect(perRound.requests).toBeLessThanOrEqual(budget.requests);
+      expect(perRound.rowsWritten).toBeLessThanOrEqual(budget.rowsWritten);
+    }, 300_000);
   }
   it('report', () => { console.log(`\n${rows.join('\n')}`); });
 });

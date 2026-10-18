@@ -487,11 +487,11 @@ describe('bot runs', () => {
     }
   });
 
-  it('cuts alarms per round at least in half; hard bots keep one move per alarm', () => {
-    const medium = alarmsFor('medium');
-    const hard = alarmsFor('hard');
+  it('cuts alarms per round at least in half, hard bots included', () => {
     const moves = (h: H) => h.msgs('host').filter((m) => m.type === 'update').length;
-    expect(medium.alarms).toBeLessThan(moves(medium.h) / 2);
-    expect(hard.h.msgs('host').some((m) => m.type === 'update' && (m.offsetMs ?? 0) > 0)).toBe(false);
+    for (const level of ['medium', 'hard'] as const) {
+      const r = alarmsFor(level);
+      expect(r.alarms).toBeLessThan(moves(r.h) / 2);
+    }
   });
 });

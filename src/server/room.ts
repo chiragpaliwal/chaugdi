@@ -4,6 +4,7 @@
 // so tests drive it with a fake clock.
 
 import { botName, decide, intentToAction, thinkTimeMs, type Intent } from '../engine/bots';
+import type { WorkStats } from '../engine/bots/mc';
 import { apply, createLobby, legalActions, type Applied } from '../engine/reducer';
 import { rngFrom } from '../engine/rng';
 import { viewFor } from '../engine/view';
@@ -16,15 +17,26 @@ import type {
   ClientMessage, ErrorCode, HoldView, RoomSeatView, RoomSettings, RoomStatus, RoomView, SeatControl, ServerMessage,
 } from '../shared/protocol';
 
-/** Hard bots on the server: a fixed sample count, because the Workers clock stands still during CPU work. */
-export const SERVER_BOT = { samples: 60, bidSamples: 100 };
+/**
+ * Hard bots on the server: a fixed sample count, because the Workers clock stands still
+ * during CPU work. 150 beat 60 by +0.33 points a round (duplicate test, 2026-10-18) and,
+ * with the search savers and model bidding, costs less CPU than the old 60. `bidSamples`
+ * only matters for simulated bidding, which Hard no longer uses.
+ */
+export const SERVER_BOT = { samples: 150, bidSamples: 100 };
 
 /**
  * Most bot moves one alarm plays ahead (free-tier budget: every alarm is a billed request
- * and two rows written). A run stops at a human's turn, so this is only a backstop. Hard
- * bots cost ~70 ms CPU a move, so they keep one move per alarm.
+ * and two rows written). A run stops at a human's turn, so this is only a backstop.
  */
 export const BOT_RUN_MAX = 12;
+/**
+ * Hard's simulated playouts one run may spend after its first move. A Hard card decision
+ * averages ~240 playouts at 150 samples (~15 ms on a dev machine; bids are free), so a run
+ * stays around 100–200 ms CPU: far under the Durable Object's 30 s, and short enough not to hold up
+ * the room's messages.
+ */
+export const HARD_RUN_PLAYOUTS = 1500;
 
 export interface SeatState {
   /** null for a bot the host added. */
@@ -470,11 +482,11 @@ export class Room {
    */
   private botRun() {
     const s = this.state;
-    if (s.settings.botLevel === 'hard') return;
     const now = this.now();
-    for (let k = 1; k < BOT_RUN_MAX && s.botMoveAt !== null && s.match && LIVE.has(s.match.phase); k++) {
+    const work: WorkStats = { playouts: 0, steps: 0 };
+    for (let k = 1; k < BOT_RUN_MAX && work.playouts < HARD_RUN_PLAYOUTS && s.botMoveAt !== null && s.match && LIVE.has(s.match.phase); k++) {
       this.lead = s.botMoveAt - now;
-      this.botMove(s.match.round!.turn!);
+      this.botMove(s.match.round!.turn!, work);
     }
     this.lead = 0;
   }
@@ -539,12 +551,12 @@ export class Room {
   }
 
   /** The bot's move for `seat`; the first legal action if the bot fails, so the table never stalls. */
-  private botMove(seat: Seat) {
+  private botMove(seat: Seat, stats?: WorkStats) {
     const s = this.state;
     const m = s.match!;
     let intent: Intent | null = null;
     try {
-      intent = decide(viewFor(m, seat), s.settings.botLevel, { rng: rngFrom(`${m.seed}:bot:${s.seq}`), ...SERVER_BOT });
+      intent = decide(viewFor(m, seat), s.settings.botLevel, { rng: rngFrom(`${m.seed}:bot:${s.seq}`), ...SERVER_BOT, stats });
     } catch {
       intent = null;
     }

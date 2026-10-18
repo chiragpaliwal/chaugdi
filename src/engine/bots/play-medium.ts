@@ -1,4 +1,5 @@
-// Medium card play (GDD §9.2): rule-based with deterministic tie-breaks.
+// Medium card play (GDD §9.2): rule-based with deterministic tie-breaks. Hard's rollouts
+// use it for every seat, so a better Medium also makes Hard stronger.
 
 import { DISPLAY_SUIT_ORDER } from '../cards';
 import { legalCards, trickWinner } from '../tricks';
@@ -22,6 +23,11 @@ function opponentsMayHaveTrump(ctx: PlayContext) {
   return trumpsOutstanding(ctx) > 0 && opponentsOf(ctx.you).some((o) => !isVoid(ctx, o, ctx.trump));
 }
 
+/** An opponent known void in `s` who may still hold a trump. */
+function cuttable(ctx: PlayContext, s: Suit) {
+  return trumpsOutstanding(ctx) > 0 && opponentsOf(ctx.you).some((o) => isVoid(ctx, o, s) && !isVoid(ctx, o, ctx.trump));
+}
+
 function lead(ctx: PlayContext): CardId {
   const { hand, trump } = ctx;
   const trumps = ofSuit(hand, trump);
@@ -33,9 +39,11 @@ function lead(ctx: PlayContext): CardId {
     if (isEffectiveMaster(top, ctx)) return top;
   }
 
+  // 1b. With trump length at least the opponents' outstanding trumps, draw with a low one.
+  if (onBiddingTeam(ctx) && trumps.length >= 3 && trumps.length >= trumpsOutstanding(ctx) && opponentsMayHaveTrump(ctx)) return low(trumps);
+
   // 2. A side-suit master, unless an opponent is void in it and may still cut.
-  const cuttable = (s: Suit) => opponentsOf(ctx.you).some((o) => isVoid(ctx, o, s) && !isVoid(ctx, o, trump) && trumpsOutstanding(ctx) > 0);
-  const masters = side.filter((c) => isEffectiveMaster(c, ctx) && !cuttable(suitOf(c)));
+  const masters = side.filter((c) => isEffectiveMaster(c, ctx) && !cuttable(ctx, suitOf(c)));
   if (masters.length) {
     return masters.reduce((a, b) => {
       const d = count(hand, suitOf(b)) - count(hand, suitOf(a));
@@ -45,14 +53,26 @@ function lead(ctx: PlayContext): CardId {
     });
   }
 
-  // 3. Lowest card of the longest side suit, avoiding suits an opponent is void in.
+  // 3. Give partner a cut: a suit partner is void in while it may hold trumps, and that
+  //    neither opponent is known void in.
+  const p = partnerOf(ctx.you);
+  if (trumpsOutstanding(ctx) > 0 && !isVoid(ctx, p, trump)) {
+    const ruff = side.filter((c) => isVoid(ctx, p, suitOf(c)) && !opponentsOf(ctx.you).some((o) => isVoid(ctx, o, suitOf(c))));
+    if (ruff.length) return low(ruff);
+  }
+
+  // 4. Lowest card of the longest side suit, avoiding suits an opponent is void in and
+  //    suits where it would lead away from a king while the ace is out.
   if (side.length) {
     const opponentVoid = (s: Suit) => opponentsOf(ctx.you).some((o) => isVoid(ctx, o, s));
-    const safe = side.filter((c) => !opponentVoid(suitOf(c)));
+    const awayFromKing = (s: Suit) => ofSuit(hand, s).some((k) => k[0] === 'K' && !isEffectiveMaster(k, ctx));
+    let safe = side.filter((c) => !opponentVoid(suitOf(c)));
+    const noKing = safe.filter((c) => !awayFromKing(suitOf(c)));
+    if (noKing.length) safe = noKing;
     return low(ofSuit(side, longestSuit(safe.length ? safe : side)));
   }
 
-  // 4. Only trumps left.
+  // 5. Only trumps left.
   return high(trumps);
 }
 
@@ -80,6 +100,10 @@ function follow(ctx: PlayContext, legal: CardId[]): CardId {
   }
   if (pos === 3) {
     if (partnerWinning && isEffectiveMaster(winner.card, ctx)) return low(legal);
+    // Win with a card the last hand cannot beat, when it is known to have to follow.
+    const lastHand = nextSeat(ctx.you) as Seat;
+    const safeBeaters = beaters.filter((c) => isEffectiveMaster(c, ctx));
+    if (safeBeaters.length && !(isVoid(ctx, lastHand, led) && cuttable(ctx, led))) return low(safeBeaters);
     return lowestWinning ?? low(legal);
   }
   if (partnerWinning) return low(legal);

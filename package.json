@@ -14,6 +14,7 @@
     "e2e:ui": "playwright test --ui",
     "deploy": "npm run build && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply chaugadi --local",
+    "db:migrate:remote": "wrangler d1 migrations apply chaugadi --remote",
     "cf-typegen": "wrangler types src/server/worker-configuration.d.ts",
     "e2e:server": "npm run db:migrate && node e2e/server.mjs",
     "e2e:race": "npm run db:migrate && node e2e/reconnect-race.mjs",

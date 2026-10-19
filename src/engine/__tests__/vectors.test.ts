@@ -165,12 +165,12 @@ describe('early end and scoring', () => {
     expect(end).toMatchObject({ ledger: 54, phase: 'MATCH_END', winner: 'A', winReason: 'TARGET' });
   });
 
-  it('TV-12: ledger 0 after a round, the dealer stays', () => {
+  it('TV-12: ledger 0 after a round, the deal moves left', () => {
     const { state, rows } = atPlay({ dealer: 2, bidder: 0, bid: 7, ledger: -7, winners: Array(7).fill(0) });
     const { state: end, events } = playOut(state, rows);
     expect(end.ledger).toBe(0);
-    expect(events).toContainEqual({ t: 'dealerStays', seat: 2 });
-    expect(apply(end, { type: 'NEXT_ROUND' }).state.dealer).toBe(2);
+    expect(events).toContainEqual({ t: 'dealerChanged', from: 2, to: 3 });
+    expect(apply(end, { type: 'NEXT_ROUND' }).state.dealer).toBe(3);
   });
 
   it('extra tricks are worth nothing; the round stops at the bid', () => {

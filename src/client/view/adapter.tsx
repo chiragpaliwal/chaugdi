@@ -331,6 +331,7 @@ function play(c: Ctx, i: AdaptInput): PlayView {
     plays: relPlays,
     race,
     lastTrick: view.tricks.length > 0 && view.phase === 'TRICK_LOOP',
+    peeking: !!peek,
     hand: view.hand,
     hukum: trump,
     yourTurn: !i.busy && yourMove,

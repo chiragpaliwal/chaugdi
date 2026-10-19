@@ -79,9 +79,11 @@ export function MatchTable({ width, height, onHome, onSettings, session, snap, p
     return () => window.clearTimeout(t);
   }, [summaryKey, overlay, autoContinue, session]);
 
+  // The Last trick button toggles: a second tap goes straight back to play.
   const showPeek = () => {
-    setPeek(true);
     window.clearTimeout(peekTimer.current);
+    if (adapted.kind === 'play' && adapted.v.peeking) return setPeek(false);
+    setPeek(true);
     peekTimer.current = window.setTimeout(() => setPeek(false), PEEK_MS);
   };
 

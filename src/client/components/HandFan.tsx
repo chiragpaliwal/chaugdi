@@ -45,7 +45,7 @@ export function ignoreKeysFrom(target: EventTarget | null): boolean {
 }
 
 /**
- * Tap to select, tap again to play (HANDOFF §6). No drag. Illegal cards stay focusable
+ * Tap to select; play from the dock CTA (a second tap on the selected card does nothing). No drag. Illegal cards stay focusable
  * with aria-disabled so the tap can explain why (HANDOFF §9).
  */
 export function HandFan({ cards, width, cardWidth, hukum, yourTurn = false, selected = null, onSelect, onPlay, onIllegal, shape = 'play', top, faceDown = 0, previewHukum = false, height, className, style }: Props) {
@@ -59,8 +59,7 @@ export function HandFan({ cards, width, cardWidth, hukum, yourTurn = false, sele
   const tap = (c: HandCard) => {
     if (!yourTurn) return;
     if (c.legal === false) return onIllegal?.(c.card);
-    if (selected === c.card) onPlay?.(c.card);
-    else onSelect?.(c.card);
+    if (selected !== c.card) onSelect?.(c.card);
   };
 
   // Desktop play (GDD §11.4): ←/→ pick a legal card wherever focus is, Enter plays it.
@@ -73,8 +72,9 @@ export function HandFan({ cards, width, cardWidth, hukum, yourTurn = false, sele
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || ignoreKeysFrom(e.target)) return;
       const { cards, selected, onSelect, onPlay } = keys.current;
       if (e.key === 'Enter') {
-        // A focused card button plays through its own click.
-        if (selected && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); onPlay?.(selected); }
+        // Enter on another focused card selects it through its own click; anywhere else it plays.
+        const onCard = e.target instanceof HTMLElement && e.target.id.startsWith('hand-');
+        if (selected && (!onCard || (e.target as HTMLElement).id === `hand-${selected}`)) { e.preventDefault(); onPlay?.(selected); }
         return;
       }
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
@@ -103,7 +103,7 @@ export function HandFan({ cards, width, cardWidth, hukum, yourTurn = false, sele
         const isSel = yourTurn && selected === c.card;
         const isHukum = hukum !== null && c.card[1] === hukum;
         const lift = isSel ? LIFT_SELECTED : yourTurn && !illegal ? LIFT_LEGAL : previewHukum && isHukum ? 6 : 0;
-        const label = cardLabel(c.card, hukum) + (illegal ? ', not playable' : '') + (isSel ? ', selected, tap again to play' : '');
+        const label = cardLabel(c.card, hukum) + (illegal ? ', not playable' : '') + (isSel ? ', selected' : '');
         return (
           <Card
             key={c.card}

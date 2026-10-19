@@ -63,8 +63,8 @@ test('trick sweep stays smooth with a 4× slower CPU', async ({ page }) => {
     const auto = setInterval(() => {
       const cta = document.querySelector<HTMLElement>('.dock .cta');
       if (cta?.textContent?.match(/Pick a card|^Play /)) {
-        // Tap to select, then tap the selected card on the next tick (React re-renders between).
-        const c = document.querySelector<HTMLElement>('.fan > .card.is-selected') ?? document.querySelector<HTMLElement>('.fan > .card:not([aria-disabled])');
+        // Tap to select, then the Play CTA on the next tick (React re-renders between).
+        const c = document.querySelector<HTMLElement>('.fan > .card.is-selected') ? cta : document.querySelector<HTMLElement>('.fan > .card:not([aria-disabled])');
         c?.click();
       }
       if (gaps.length && !measuring) clearInterval(auto);

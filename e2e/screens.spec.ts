@@ -35,7 +35,7 @@ test('08 Hukum: picking hearts re-sorts the hand hearts-first with the notch', a
   expect(await text(page, '.hukum-pick .w')).toBe('Hearts · not called yet');
 });
 
-test('10 your turn: illegal tap explains, clears after 2.5 s; second tap plays', async ({ page }) => {
+test('10 your turn: illegal tap explains, clears after 2.5 s; second tap does nothing, the CTA plays', async ({ page }) => {
   await open(page, '10-your-turn-13-cards');
   expect(await text(page, '.dock .cta')).toBe('Play A♣');
   await page.click('#hand-KH', { force: true });
@@ -47,6 +47,9 @@ test('10 your turn: illegal tap explains, clears after 2.5 s; second tap plays',
   await page.click('#hand-9C');
   expect(await text(page, '.dock .cta')).toBe('Play 9♣');
   await page.click('#hand-9C');
+  await expect(page.locator('.fan > .card'), 'a second tap does not play').toHaveCount(13);
+  expect(await text(page, '.dock .cta')).toBe('Play 9♣');
+  await page.click('.dock .cta');
   expect(await text(page, '.dock .cta')).toBe('Trick resolving');
   await expect(page.locator('.fan > .card')).toHaveCount(12);
   await expect(page.locator('.trick-card[aria-label^="You played 9 of clubs"]')).toHaveCount(1);

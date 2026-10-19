@@ -162,7 +162,7 @@ export const introSteps = (target: number): IntroStep[] => [
   { target: '.seat[data-seat="2"] .av', circle: true, title: 'Asha is your partner', body: 'Partners sit opposite. Ben and Dev are the other team. Your ring colour shows your team.' },
   { target: '.contract-chip', title: 'Asha bid 7', body: 'Your team must win 7 of the 13 tricks, called Sar. Make it for +7. Miss it and you lose 14.' },
   { target: '.contract-chip .hukum-chip', title: 'Spades are Hukum', body: 'Hukum is trump. Any spade beats every card of the other three suits.' },
-  { target: '.fan', title: 'Follow suit', body: 'Ben led a heart, so only your hearts light up. Tap the K♥ to see what it does, then tap again to play.' },
+  { target: '.fan', title: 'Follow suit', body: 'Ben led a heart, so only your hearts light up. Tap the K♥ to see what it does, then press Play.' },
   { target: '.trick-card.is-cut', title: 'Dev cut', body: 'Dev had no hearts and played a spade. A cut wins the trick unless someone cuts higher.' },
   { target: '.pill', title: 'Race to the contract', body: `6 more and Asha’s bid is made. If Ben and Dev win 7 first, it breaks. First team to +${target} wins the match.` },
 ];

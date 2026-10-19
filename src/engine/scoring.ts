@@ -23,7 +23,7 @@ export function scoreRound(round: Pick<RoundState, 'contract' | 'tricksWon'>): {
   return { outcome, delta: roundDelta(outcome, round.contract.bid) };
 }
 
-/** The deal moves left only when the dealer's team is strictly ahead. */
+/** The deal moves left once the dealer's team is level or ahead (standing ≥ 0). */
 export function nextDealer(ledger: number, dealer: Seat): Seat {
-  return standing(ledger, teamOf(dealer)) > 0 ? nextSeat(dealer) : dealer;
+  return standing(ledger, teamOf(dealer)) >= 0 ? nextSeat(dealer) : dealer;
 }

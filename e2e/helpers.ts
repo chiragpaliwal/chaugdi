@@ -46,7 +46,7 @@ export async function step(page: Page, opts: StepOptions = {}): Promise<Step> {
   if (await visible(page, '.dock .cta:has-text("Pick a card")')) {
     await seen('play');
     const card = page.locator('.fan > .card:not([aria-disabled])').first();
-    if (await tap(card)) await tap(card);
+    if (await tap(card)) await tap(page.locator('.dock .cta'));
     return 'play';
   }
   if (await visible(page, '.result-scr .rs-dock .cta')) { await seen('summary'); await tap(page.locator('.rs-dock .cta')); return 'summary'; }

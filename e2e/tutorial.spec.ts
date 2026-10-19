@@ -17,7 +17,7 @@ test('intro, practice hand with tips, Finish returns Home; the solo save is unto
   intro.push(await title());
   const k = page.locator('#hand-KH');
   await k.click();
-  await k.click();
+  await page.click('.dock .cta');
   intro.push(await title());
   await page.click('.coach .cb.bk:has-text("Back")');
   expect(await title()).toBe(intro[3]);
@@ -46,7 +46,7 @@ test('intro, practice hand with tips, Finish returns Home; the solo save is unto
       await tap('.sheet > .cta');
     } else if (await visible(page, '.dock .cta:has-text("Pick a card")')) {
       const card = '.fan > .card:not([aria-disabled])';
-      if (await tap(card)) await tap(card);
+      if (await tap(card)) await tap('.dock .cta');
     } else await page.waitForTimeout(60);
   }
   expect(tips.slice(0, 5)).toEqual(['Your first 5 cards', 'Open the bidding', 'Call Hukum', 'You lead', 'Race to the contract']);

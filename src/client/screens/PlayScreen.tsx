@@ -21,6 +21,8 @@ export interface PlayView {
   plays: Play[];
   race: RaceView;
   lastTrick?: boolean;
+  /** The last trick is showing in the cross (its button reads "Back to play"). */
+  peeking?: boolean;
   hand: CardId[];
   hukum: Suit;
   yourTurn: boolean;
@@ -88,7 +90,7 @@ export function PlayScreen({ v, width = 390, height = 844, cardSize = 'M', onPla
   const table = (
     <Table width={tableW} height={tableH} seats={v.seats} trick={v.trick} held={v.held} style={TABLE_MARGIN}
       centre={(g) => <RacePill variant="race" at={g.pill} compact={g.pillCompact} race={v.race} />}>
-      {v.lastTrick && <LastTrickButton onClick={onLastTrick} />}
+      {v.lastTrick && <LastTrickButton onClick={onLastTrick} showing={v.peeking} />}
     </Table>
   );
 

@@ -91,16 +91,16 @@ describe('free-tier cost per round', () => {
   /** Matches per case. Match length swings a lot with the cards, so budgets are per round. */
   const SEEDS = 4;
   const cases: [string, string[], BotLevel, { requests: number; rowsWritten: number }][] = [
-    // Budgets: cost per round averaged over 12 seeded matches, measured 2026-10-18 (humans
+    // Budgets: cost per round averaged over the seeded matches, measured 2026-10-22 (humans
     // deciding like Medium), plus ~15%. Raising one is a decision: rows written cap the free
-    // tier at ~100k / (budget × rounds per match) matches a day. Hard bots batch their runs
-    // since 2026-10-18, which took them from 26–37 requests and 88–99 rows a round to the
-    // Medium level.
-    ['1 human, 3 medium bots', ['a'], 'medium', { requests: 14.5, rowsWritten: 56 }],
-    ['2 humans, 2 medium bots', ['a', 'b'], 'medium', { requests: 16.2, rowsWritten: 74 }],
+    // tier at ~100k / (budget × rounds per match) matches a day. Since 2026-10-22 a player's
+    // message plays the bot moves it leads to at once (no alarm), which halved the cost of
+    // tables with bots (the 2-human, 2-bot budgets were 15.9 requests and 73 rows a round).
+    ['1 human, 3 medium bots', ['a'], 'medium', { requests: 6.1, rowsWritten: 21.5 }],
+    ['2 humans, 2 medium bots', ['a', 'b'], 'medium', { requests: 9.3, rowsWritten: 39.5 }],
     ['4 humans', ['a', 'b', 'c', 'd'], 'medium', { requests: 15.1, rowsWritten: 73 }],
-    ['2 humans, 2 hard bots', ['a', 'b'], 'hard', { requests: 15.9, rowsWritten: 73 }],
-    ['1 human, 3 hard bots', ['a'], 'hard', { requests: 14.5, rowsWritten: 56 }],
+    ['2 humans, 2 hard bots', ['a', 'b'], 'hard', { requests: 9.3, rowsWritten: 40 }],
+    ['1 human, 3 hard bots', ['a'], 'hard', { requests: 6.4, rowsWritten: 22.7 }],
   ];
   for (const [name, humans, level, budget] of cases) {
     it(`${name}: within budget`, () => {

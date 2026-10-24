@@ -7,6 +7,7 @@
 import PartySocket from 'partysocket';
 import { SEATS, type PlayerView, type Seat } from '../../engine/types';
 import type { ClientMessage, ErrorCode, RoomView, ServerMessage } from '../../shared/protocol';
+import { MOTION } from '../../shared/constants';
 import type { ClientIntent, DriverUpdate, GameDriver, Players } from './types';
 
 export type ConnState = 'connecting' | 'open' | 'reconnecting';
@@ -69,6 +70,20 @@ export const HEARTBEAT = {
 } as const;
 
 /**
+ * Stall watchdog. The room acts on its own timers (a bot's move, a turn running out, the
+ * summary countdown) through one alarm, and the raw pings never wake it. If that alarm is
+ * missed, the table waits for the next 30 s sweep: this happened in production. A JSON
+ * ping wakes the room, which runs every timer that is due.
+ */
+export const WATCHDOG = {
+  /** Longest bot think time (thinkTimeMs: 450 + 500 + 400). */
+  botThinkMs: 1_500,
+  /** How late the room's update may be before we wake it, and how often we retry. */
+  slackMs: 3_000,
+  retryMs: 5_000,
+} as const;
+
+/**
  * Close codes from the GameRoom (game-room.ts). These are final; any other code retries,
  * including 1000 `superseded` (an old socket of this page) and 4100 `stale` (the server
  * swept a silent socket).
@@ -113,6 +128,8 @@ export class RemoteDriver implements GameDriver {
   private misses = 0;
   private beat: ReturnType<typeof setInterval> | null = null;
   private nudge: ReturnType<typeof setTimeout> | null = null;
+  /** When the room's next update is overdue (see `WATCHDOG`); null when nothing is owed. */
+  private overdueAt: number | null = null;
   private reason: ConnectReason = 'initial';
   /** Connect attempts since the last open. */
   private attempt = 0;
@@ -280,6 +297,10 @@ export class RemoteDriver implements GameDriver {
       this.socket.reconnect();
       return;
     }
+    if (this.overdueAt !== null && now >= this.overdueAt) {
+      this.overdueAt = now + WATCHDOG.retryMs;
+      this.message({ type: 'ping' });
+    }
     const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
     const every = hidden ? HEARTBEAT.hiddenMs : HEARTBEAT.visibleMs;
     // Small slack: interval timers drift a few ms.
@@ -306,6 +327,7 @@ export class RemoteDriver implements GameDriver {
         const skew = m.serverNow - this.now();
         if (m.view) this.push({ view: m.view, events: [], animBudgetMs: 0 });
         this.set({ room: m.room, skew, hasView: this.snap.hasView || !!m.view });
+        this.expect(m.view, 0);
         return;
       }
       case 'update': {
@@ -319,6 +341,7 @@ export class RemoteDriver implements GameDriver {
         this.pending = false;
         this.push({ view: m.view, events: m.events, animBudgetMs: m.animBudgetMs, ...(m.offsetMs ? { offsetMs: m.offsetMs } : {}) });
         this.set({ skew: m.serverNow - this.now(), hasView: true });
+        this.expect(m.view, (m.offsetMs ?? 0) + m.animBudgetMs);
         return;
       }
       case 'lobby':
@@ -346,6 +369,22 @@ export class RemoteDriver implements GameDriver {
         this.set({ closed: 'idle' });
         return;
     }
+  }
+
+  /**
+   * When the room owes us the update after `view`: a bot's move, the end of a human's turn
+   * timer or of the round summary, plus slack. `startMs`: when this update's animations
+   * start (its offset) plus how long they run. A held seat's turn owes nothing.
+   */
+  private expect(view: PlayerView | null, startMs: number) {
+    const now = this.now();
+    let at: number | null = null;
+    if (view?.phase === 'ROUND_EVAL') at = now + startMs + MOTION.summarySeconds * 1000;
+    else if (view && view.phase !== 'LOBBY' && view.phase !== 'MATCH_END' && view.turn !== null) {
+      if (view.players?.[view.turn]?.isBot) at = now + startMs + WATCHDOG.botThinkMs;
+      else if (view.turnDeadline != null) at = this.local(view.turnDeadline);
+    }
+    this.overdueAt = at === null ? null : at + WATCHDOG.slackMs;
   }
 
   private push(u: Omit<DriverUpdate, 'players'>) {

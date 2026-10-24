@@ -69,7 +69,8 @@ export interface RoundState {
 
 // ---------- match ----------
 export type Phase = 'LOBBY' | 'BIDDING' | 'TRUMP_SELECTION' | 'TRICK_LOOP' | 'ROUND_EVAL' | 'MATCH_END';
-export type WinReason = 'TARGET' | 'KOT';
+/** `ENDED`: stopped early (online, by the host or when the last player left); no winner. */
+export type WinReason = 'TARGET' | 'KOT' | 'ENDED';
 export interface MatchState {
   config: MatchConfig;
   phase: Phase;
@@ -89,7 +90,8 @@ export type Action =
   | { type: 'PASS'; seat: Seat }
   | { type: 'CHOOSE_TRUMP'; seat: Seat; suit: Suit }
   | { type: 'PLAY_CARD'; seat: Seat; card: CardId }
-  | { type: 'NEXT_ROUND' }; // system
+  | { type: 'NEXT_ROUND' } // system
+  | { type: 'END_MATCH' }; // system: stop early, no winner
 
 // ---------- events (drive animations) ----------
 export type GameEvent =
@@ -107,7 +109,8 @@ export type GameEvent =
   | { t: 'scored'; team: Team; delta: number; ledger: number }
   | { t: 'dealerChanged'; from: Seat; to: Seat }
   | { t: 'dealerStays'; seat: Seat }
-  | { t: 'matchOver'; winner: Team; reason: WinReason };
+  | { t: 'matchOver'; winner: Team; reason: WinReason }
+  | { t: 'matchEnded' };
 
 // ---------- per-seat view (the ONLY thing a client or bot ever receives) ----------
 export interface PlayerView {

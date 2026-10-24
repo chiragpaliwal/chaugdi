@@ -81,6 +81,16 @@ export function apply(input: MatchState, action: Action): Applied {
       startRound(state, state.round!.roundNo + 1, events);
       break;
     }
+    case 'END_MATCH': {
+      if (state.phase === 'MATCH_END') throw new RuleError('MATCH_OVER');
+      if (state.phase === 'LOBBY') throw new RuleError('WRONG_PHASE');
+      state.phase = 'MATCH_END';
+      state.winner = null;
+      state.winReason = 'ENDED';
+      if (state.round) state.round.turn = null;
+      events.push({ t: 'matchEnded' });
+      break;
+    }
   }
   return { state, events };
 }

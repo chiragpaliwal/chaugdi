@@ -92,7 +92,8 @@ export type DbOp =
   | { op: 'roomStatus'; code: string; status: 'open' | 'playing' | 'closed' }
   | { op: 'matchStart'; id: string; code: string; seed: string; at: number; players: { seat: Seat; playerId: string | null; name: string; isBot: boolean; team: Team }[] }
   | { op: 'round'; matchId: string; result: RoundResult }
-  | { op: 'matchEnd'; id: string; at: number; winner: Team; reason: WinReason; ledger: number };
+  /** `ABANDONED`: the room closed idle mid-match. An early end has no winner. */
+  | { op: 'matchEnd'; id: string; at: number; winner: Team | null; reason: WinReason | 'ABANDONED'; ledger: number };
 
 /** Messages are addressed to a player id; the Durable Object sends them to each of that player's sockets. */
 export interface Outgoing { to: string; msg: ServerMessage }
@@ -211,7 +212,7 @@ export class Room {
           throw e;
         }
       }
-    });
+    }, true);
   }
 
   /** Runs every timer that is due (every entry point does; see `run`). */
@@ -347,6 +348,11 @@ export class Room {
         this.startMatch();
         return;
       }
+      case 'endMatch':
+        this.requireHost(playerId);
+        if (!this.inMatch()) throw new Reject('WRONG_PHASE');
+        this.endEarly();
+        return;
       case 'continue': {
         this.requireSeat(playerId);
         if (s.match?.phase !== 'ROUND_EVAL') throw new Reject('WRONG_PHASE');
@@ -403,7 +409,9 @@ export class Room {
       s.away[seat] = null;
       s.seats[seat]!.dropped = true;
       this.presence(seat);
-      if (this.isTurn(seat)) this.refresh();
+      // The last player still at the table: the match ends instead of bots playing on.
+      if (this.inMatch() && !SEATS.some((x) => x !== seat && this.playing(x))) this.endEarly();
+      else if (this.isTurn(seat)) this.refresh();
     }
     if (s.hostId === playerId) this.passHost(playerId, seat);
     this.lobbyDirty = true;
@@ -445,6 +453,10 @@ export class Room {
     const now = this.now();
     const due = (t: number | null) => t !== null && t <= now;
     if (due(s.idleCleanupAt) || due(this.idleExpiry())) {
+      // Everyone went away mid-match: record it as abandoned rather than leave it open.
+      if (this.inMatch() && s.matchId) {
+        this.fx.db.push({ op: 'matchEnd', id: s.matchId, at: this.now(), winner: null, reason: 'ABANDONED', ledger: s.match!.ledger });
+      }
       s.closed = true;
       s.idleCleanupAt = null;
       this.fx.close = true;
@@ -478,13 +490,15 @@ export class Room {
   /**
    * Plays the bot moves that follow, ahead of time, until a human's turn (or the round
    * ends). Each goes out now with the start offset it would have had with its own alarm,
-   * so the table looks the same and the run costs one alarm.
+   * so the table looks the same and the run costs one alarm. `played` is how many moves
+   * this wake already made: 1 after an alarm's due move, 0 after a message, which then
+   * needs no alarm at all.
    */
-  private botRun() {
+  private botRun(played = 1) {
     const s = this.state;
     const now = this.now();
     const work: WorkStats = { playouts: 0, steps: 0 };
-    for (let k = 1; k < BOT_RUN_MAX && work.playouts < HARD_RUN_PLAYOUTS && s.botMoveAt !== null && s.match && LIVE.has(s.match.phase); k++) {
+    for (let k = played; k < BOT_RUN_MAX && work.playouts < HARD_RUN_PLAYOUTS && s.botMoveAt !== null && s.match && LIVE.has(s.match.phase); k++) {
       this.lead = s.botMoveAt - now;
       this.botMove(s.match.round!.turn!, work);
     }
@@ -543,6 +557,14 @@ export class Room {
     this.commit(applied);
   }
 
+  /** Stop the match for everyone, with no winner (host's End match, or the last player left). */
+  private endEarly() {
+    const s = this.state;
+    s.away = [null, null, null, null];
+    s.continued = [];
+    this.commit(apply(s.match!, { type: 'END_MATCH' }));
+  }
+
   private nextRound() {
     const m = this.state.match;
     // A summary timer left over outside the summary must not stay due.
@@ -576,10 +598,11 @@ export class Room {
     if (events.some((e) => e.t === 'roundDecided') && s.matchId) {
       this.fx.db.push({ op: 'round', matchId: s.matchId, result: state.history[state.history.length - 1]! });
     }
-    const over = events.find((e) => e.t === 'matchOver');
-    if (over && over.t === 'matchOver' && s.matchId) {
+    const over = events.find((e) => e.t === 'matchOver' || e.t === 'matchEnded');
+    if (over && s.matchId) {
+      const [winner, reason] = over.t === 'matchOver' ? [over.winner, over.reason] : [null, 'ENDED' as const];
       this.fx.db.push(
-        { op: 'matchEnd', id: s.matchId, at: this.now(), winner: over.winner, reason: over.reason, ledger: state.ledger },
+        { op: 'matchEnd', id: s.matchId, at: this.now(), winner, reason, ledger: state.ledger },
         { op: 'roomStatus', code: s.code, status: 'open' },
       );
       // The idle clock for the results screen starts when the match ends.
@@ -690,7 +713,12 @@ export class Room {
 
   // ---------------------------------------------------------------- helpers
 
-  private run(fn: () => void): Effects {
+  /**
+   * `ahead`: a player's message plays the bot moves it leads to now, with start offsets,
+   * instead of leaving them to an alarm. Between human seats a bot run is one move long,
+   * so this saves most alarms (free-tier budget) and leaves no alarm to go missing.
+   */
+  private run(fn: () => void, ahead = false): Effects {
     this.fx = { out: [], db: [], close: false };
     this.lobbyDirty = false;
     this.lead = 0;
@@ -701,6 +729,7 @@ export class Room {
       if (!this.runDue()) break;
     }
     const s = this.state;
+    if (ahead && !s.closed && this.humansOnline()) this.botRun(0);
     // Any lobby change that breaks the start condition cancels the countdown.
     if (s.startingAt !== null && !this.canStart()) { s.startingAt = null; this.lobbyDirty = true; }
     if (this.lobbyDirty && !s.closed) {
@@ -740,6 +769,12 @@ export class Room {
     if (st.dropped) return 'dropped';
     if (!this.isOnline(st.playerId)) return this.state.away[seat] ? 'held' : 'dropped';
     return 'human';
+  }
+
+  /** A human who is still at the table: connected and not handed to a bot by leaving or dropping. */
+  private playing(seat: Seat) {
+    const st = this.state.seats[seat];
+    return !!st?.playerId && this.isOnline(st.playerId) && !st.dropped;
   }
 
   private botPlays(seat: Seat) { const c = this.control(seat); return c === 'bot' || c === 'afk' || c === 'dropped'; }

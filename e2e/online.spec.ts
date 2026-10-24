@@ -125,3 +125,25 @@ test('joining a code with no room explains, and a room link without a nickname a
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByText(/no room with that code/i)).toBeVisible({ timeout: 15_000 });
 });
+
+test('the host ends the match for everyone; nobody wins', async ({ browser }) => {
+  const { asha, ben } = await startRoom(browser);
+  const errors = [collectErrors(asha.page), collectErrors(ben.page)];
+  // Only the host's menu offers it.
+  await ben.page.locator('.game-scr').getByRole('button', { name: 'Room menu' }).click();
+  await expect(ben.page.getByRole('button', { name: /leave room · a bot takes your seat/i })).toBeVisible();
+  await expect(ben.page.getByRole('button', { name: /end match for everyone/i })).toHaveCount(0);
+  await ben.page.getByRole('button', { name: /back to the table/i }).click();
+
+  await asha.page.locator('.game-scr').getByRole('button', { name: 'Room menu' }).click();
+  await asha.page.getByRole('button', { name: /end match for everyone/i }).click();
+  await asha.page.getByRole('dialog', { name: 'End the match?' }).getByRole('button', { name: 'End match', exact: true }).click();
+  for (const p of [asha.page, ben.page]) {
+    await expect(p.locator('.result-scr')).toBeVisible({ timeout: 15_000 });
+    await expect(p.getByRole('heading', { name: /match ended early/i })).toBeVisible();
+    await expect(p.getByText(/nobody wins/i)).toBeVisible();
+  }
+  for (const e of errors) e();
+  await asha.context.close();
+  await ben.context.close();
+});

@@ -247,6 +247,42 @@ describe('heartbeat', () => {
     t.driver.destroy();
   });
 
+  it('wakes the room with a JSON ping when a bot move or turn timer is overdue', () => {
+    const t = beating();
+    const pings = () => t.sent.filter((m) => m.type === 'ping').length;
+    /** A second passes on a live socket: the runtime answers each raw ping. */
+    const second = () => { t.second(); t.s.pong(); };
+    // Dev (a bot) is to move: owed after think time plus slack, 4.5 s.
+    t.s.feed({ type: 'sync', room: room(), view: view(0, 1, { turn: 2 }), seq: 1, serverNow: t.now });
+    for (let i = 0; i < 4; i++) second();
+    expect(pings()).toBe(0);
+    second();
+    expect(t.sent.at(-1)).toEqual({ type: 'ping', seq: 1 });
+    // Still nothing: retry every 5 s, not every second.
+    for (let i = 0; i < 4; i++) second();
+    expect(pings()).toBe(1);
+    second();
+    expect(pings()).toBe(2);
+
+    // The update came, with 2 s of animations starting 1 s ahead: owed at 1 + 2 + 1.5 + 3 s.
+    t.s.feed({ type: 'update', seq: 2, view: view(0, 2, { turn: 3 }), events: [], animBudgetMs: 2000, offsetMs: 1000, serverNow: t.now });
+    for (let i = 0; i < 7; i++) second();
+    expect(pings()).toBe(2);
+    second();
+    expect(pings()).toBe(3);
+
+    // A human's turn is owed at its deadline plus slack; a held seat (no deadline) owes nothing.
+    t.s.feed({ type: 'update', seq: 3, view: view(0, 3, { turn: 1, turnDeadline: t.now + 10_000 }), events: [], animBudgetMs: 0, serverNow: t.now });
+    for (let i = 0; i < 12; i++) second();
+    expect(pings()).toBe(3);
+    second();
+    expect(pings()).toBe(4);
+    t.s.feed({ type: 'update', seq: 4, view: view(0, 4, { turn: 1 }), events: [], animBudgetMs: 0, serverNow: t.now });
+    for (let i = 0; i < 60; i++) second();
+    expect(pings()).toBe(4);
+    t.driver.destroy();
+  });
+
   it('tells the server why it connects, which attempt and the last seq seen', async () => {
     const t = setup();
     expect(await t.query()).toMatchObject({ reason: 'initial', attempt: '1', since: '0' });

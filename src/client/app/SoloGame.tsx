@@ -52,15 +52,17 @@ interface MatchTableProps extends Props {
   /** Leaving the round summary or match result (tutorial: the end of the hand). */
   onFinish?: () => void;
   homeLabel?: string;
+  /** Online host only: stop the match for everyone, after a confirm. */
+  onEndMatch?: () => void;
   /** Drawn over the table (coach marks; online banners). A function gets the screen shown. */
   children?: React.ReactNode | ((screen: TableScreen) => React.ReactNode);
 }
 
 /** The table for a local match: LocalDriver → animation queue → adapter → screens. */
-export function MatchTable({ width, height, onHome, onSettings, session, snap, practice, autoContinue = !practice, decorate, onVote, rematchWaiting, onFinish, homeLabel = 'Home · the match is saved', children }: MatchTableProps) {
+export function MatchTable({ width, height, onHome, onSettings, session, snap, practice, autoContinue = !practice, decorate, onVote, rematchWaiting, onFinish, homeLabel = 'Home · the match is saved', onEndMatch, children }: MatchTableProps) {
   const cardSize = useSettings((s) => s.cardSize);
   const send = session.driver.send.bind(session.driver);
-  const [overlay, setOverlay] = useState<'menu' | 'seen' | null>(null);
+  const [overlay, setOverlay] = useState<'menu' | 'seen' | 'end' | null>(null);
   const [peek, setPeek] = useState(false);
   const peekTimer = useRef<number>();
   useEffect(() => () => window.clearTimeout(peekTimer.current), []);
@@ -120,6 +122,14 @@ export function MatchTable({ width, height, onHome, onSettings, session, snap, p
           <button className="btn-secondary" onClick={() => setOverlay(null)}>Back to the table</button>
           {onSettings && <button className="btn-secondary" onClick={onSettings}>Settings</button>}
           <button className="btn-secondary" onClick={onHome}>{homeLabel}</button>
+          {onEndMatch && screen.kind !== 'result' && <button className="btn-secondary" onClick={() => setOverlay('end')}>End match for everyone</button>}
+        </Overlay>
+      )}
+      {overlay === 'end' && onEndMatch && (
+        <Overlay title="End the match?" onClose={() => setOverlay(null)}>
+          <p className="dim">Everyone goes to the results now. Nobody wins, and the rounds played so far are kept.</p>
+          <button className="btn-secondary" onClick={() => setOverlay(null)}>Keep playing</button>
+          <button className="btn-primary" onClick={() => { setOverlay(null); onEndMatch(); }}>End match</button>
         </Overlay>
       )}
       {overlay === 'seen' && <CardsSeen played={view.playedCards} hukum={view.trump} onClose={() => setOverlay(null)} />}

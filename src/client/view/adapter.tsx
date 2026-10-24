@@ -423,7 +423,13 @@ function result(c: Ctx): MatchResultView {
   const last = v.history[v.history.length - 1];
   const SUIT_WORD: Record<Suit, string> = { S: 'spades', H: 'hearts', D: 'diamonds', C: 'clubs' };
   let story = '';
-  if (last) {
+  if (v.winReason === 'ENDED') {
+    const lead = c.rel(v.ledger);
+    const n = v.history.length;
+    const after = n === 0 ? 'before any round finished' : `after ${n} ${n === 1 ? 'round' : 'rounds'}`;
+    story = `The match was stopped ${after}, so nobody wins. `
+      + (lead === 0 ? 'The teams were level.' : `${names[lead > 0 ? 'A' : 'B']} were ahead by ${Math.abs(lead)}.`);
+  } else if (last) {
     const who = c.name(last.contract.seat);
     const final = Math.abs(c.rel(last.ledgerAfter));
     story = v.winReason === 'KOT'
@@ -433,7 +439,7 @@ function result(c: Ctx): MatchResultView {
         : `${who} missed ${last.contract.bid} with ${SUIT_WORD[last.trump]} as Hukum, which put ${names[winner]} on +${final}.`;
   }
   return {
-    winner,
+    winner: v.winReason === 'ENDED' ? null : winner,
     teamNames: names,
     reason: v.winReason ?? 'TARGET',
     story,

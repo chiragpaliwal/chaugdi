@@ -374,7 +374,8 @@ describe('disconnects', () => {
     h.send('cara', { type: 'vote', seat: 1, choice: 'bot' });
     expect(h.room$('host').seats[1]?.control).toBe('dropped');
     expect(h.last('host', 'presence')).toMatchObject({ seat: 1, isBot: true, control: 'dropped' });
-    expect(h.room.state.botMoveAt).not.toBeNull();
+    // The vote's message plays the bot's move at once, ahead of the table.
+    expect(h.room.state.match!.round!.turn).not.toBe(1);
 
     h.connect('ben');
     expect(h.room$('ben').seats[1]?.control).toBe('human');
@@ -493,5 +494,45 @@ describe('bot runs', () => {
       const r = alarmsFor(level);
       expect(r.alarms).toBeLessThan(moves(r.h) / 2);
     }
+  });
+});
+
+describe('ending early', () => {
+  it('only the host ends a match; everyone gets the ended result with no winner', () => {
+    const h = started(['host', 'ben']);
+    h.send('ben', { type: 'endMatch' });
+    expect(h.last('ben', 'error')?.code).toBe('NOT_HOST');
+    h.send('host', { type: 'endMatch' });
+    const m = h.room.state.match!;
+    expect(m).toMatchObject({ phase: 'MATCH_END', winner: null, winReason: 'ENDED' });
+    for (const p of ['host', 'ben']) {
+      expect(h.last(p, 'update')?.events).toEqual([{ t: 'matchEnded' }]);
+      expect(h.room$(p).status).toBe('over');
+    }
+    expect(h.db).toContainEqual(expect.objectContaining({ op: 'matchEnd', winner: null, reason: 'ENDED', ledger: m.ledger }));
+    expect(h.room.state.botMoveAt).toBeNull();
+    expect(h.room.state.turnDeadline).toBeNull();
+    // Nothing more to end; the host can still rematch.
+    h.send('host', { type: 'endMatch' });
+    expect(h.last('host', 'error')?.code).toBe('WRONG_PHASE');
+    h.send('host', { type: 'rematch' });
+    expect(h.room.state.match!.phase).toBe('BIDDING');
+  });
+
+  it('the last player at the table leaving ends the match; with others there, a bot takes over', () => {
+    const h = started(['host', 'ben']);
+    h.send('ben', { type: 'leave' });
+    expect(h.room.state.match!.phase).not.toBe('MATCH_END');
+    expect(h.room$('host').seats[1]?.control).toBe('dropped');
+    h.send('host', { type: 'leave' });
+    expect(h.room.state.match).toMatchObject({ phase: 'MATCH_END', winReason: 'ENDED' });
+  });
+
+  it('a room that closes idle mid-match records the match as abandoned', () => {
+    const h = started(['host']);
+    h.disconnect('host');
+    h.advance(31 * 60_000);
+    expect(h.closed).toBe(true);
+    expect(h.db).toContainEqual(expect.objectContaining({ op: 'matchEnd', winner: null, reason: 'ABANDONED' }));
   });
 });

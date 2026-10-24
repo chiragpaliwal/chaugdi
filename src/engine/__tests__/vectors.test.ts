@@ -228,3 +228,17 @@ describe('viewFor', () => {
     expect(viewFor(end, 1).revealedHands![0]).toHaveLength(6);
   });
 });
+
+describe('END_MATCH (online early end)', () => {
+  it('stops a match in progress with no winner, and only one in progress', () => {
+    const m = deepFreeze(newMatch(DEFAULT_CONFIG, 'end-early', 0));
+    const r = apply(m, { type: 'END_MATCH' });
+    expect(r.events).toEqual([{ t: 'matchEnded' }]);
+    expect(r.state).toMatchObject({ phase: 'MATCH_END', winner: null, winReason: 'ENDED', ledger: m.ledger });
+    expect(r.state.round!.turn).toBeNull();
+    expect(legalActions(r.state)).toEqual([]);
+    expect(viewFor(r.state, 0).legal).toEqual([]);
+    expect(() => apply(r.state, { type: 'END_MATCH' })).toThrow(RuleError);
+    expect(() => apply(r.state, { type: 'PASS', seat: 1 })).toThrow(RuleError);
+  });
+});

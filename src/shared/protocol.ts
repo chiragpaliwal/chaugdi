@@ -39,6 +39,8 @@ export const ClientMessage = z.discriminatedUnion('type', [
   /** Someone dropped on a held seat: wait 1 more minute, or let a bot play (screen 13). */
   msg('vote', { seat, choice: z.enum(['wait', 'bot']) }),
   msg('rematch', {}),
+  /** Host only, mid-match: stop for everyone, no winner. */
+  msg('endMatch', {}),
   msg('ping', { resync: z.boolean().optional() }),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessage>;

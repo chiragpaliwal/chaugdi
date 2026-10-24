@@ -49,7 +49,7 @@ export function eventMs(e: GameEvent): number {
     case 'cut': return MOTION.cut;
     case 'trickWon': return MOTION.trickHold + MOTION.trickSweep;
     case 'roundDecided': return MOTION.roundDecided;
-    case 'handsRevealed': case 'scored': case 'dealerChanged': case 'dealerStays': case 'matchOver': return 0;
+    case 'handsRevealed': case 'scored': case 'dealerChanged': case 'dealerStays': case 'matchOver': case 'matchEnded': return 0;
   }
 }
 

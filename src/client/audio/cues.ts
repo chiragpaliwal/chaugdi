@@ -101,6 +101,8 @@ export function feedbackFor(e: GameEvent, ctx: FeedbackContext): Feedback {
         say: `${kot ? 'Kot! ' : ''}${team(e.winner)} win the match.`,
       };
     }
+    case 'matchEnded':
+      return { cues: [], say: 'The match was ended early. No winner.' };
   }
 }
 

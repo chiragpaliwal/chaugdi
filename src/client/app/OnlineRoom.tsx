@@ -2,7 +2,7 @@
 // MatchTable as solo play with presence, timers, reconnect banners and the pause vote.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { Seat } from '../../engine/types';
+import { SEATS, type Seat } from '../../engine/types';
 import type { ErrorCode, RoomView } from '../../shared/protocol';
 import { cleanNickname } from '../../shared/nickname';
 import { Banner, Toast } from '../components/GameParts';
@@ -156,6 +156,8 @@ function OnlineTable({ session, snap, room, width, height, onLeave, onSettings }
   const vote = (choice: 'wait' | 'bot') => { if (layer.vote) d.message({ type: 'vote', seat: layer.vote.seat, choice }); };
   const host = Object.values(room.seats).find((s) => s?.isHost);
   const isHost = room.seats[room.you!]?.isHost;
+  // When you are the last player at the table, leaving ends the match (the server does it).
+  const othersPlaying = SEATS.some((x) => x !== room.you && room.seats[x]?.control === 'human' && room.seats[x]?.connected);
 
   return (
     <MatchTable
@@ -166,7 +168,8 @@ function OnlineTable({ session, snap, room, width, height, onLeave, onSettings }
       onVote={vote}
       rematchWaiting={isHost ? undefined : `Waiting for ${host?.name ?? 'the host'} to rematch`}
       onHome={onLeave} onSettings={onSettings}
-      homeLabel="Leave room · a bot takes your seat"
+      homeLabel={othersPlaying ? 'Leave room · a bot takes your seat' : 'Leave room · the match ends'}
+      onEndMatch={isHost && room.status === 'playing' ? () => d.message({ type: 'endMatch' }) : undefined}
     >
       {(screen) => (screen.kind === 'play' || screen.kind === 'summary' || screen.kind === 'result' ? null : (
         <>

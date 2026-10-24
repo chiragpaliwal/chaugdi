@@ -14,9 +14,10 @@ export interface MatchRound {
 }
 
 export interface MatchResultView {
-  winner: Team;
+  /** null when the match was ended early (`ENDED`). */
+  winner: Team | null;
   teamNames: Record<Team, string>;
-  reason: 'TARGET' | 'KOT';
+  reason: 'TARGET' | 'KOT' | 'ENDED';
   story: string;
   history: MatchRound[];
   target: number;
@@ -31,6 +32,7 @@ const CONFETTI: Record<Team, string[]> = {
 /** `rematchWaiting`: online, only the host may rematch; others see this in place of the button. */
 export function MatchResultScreen({ v, width = 390, height = 844, onHome, onRematch, rematchWaiting }: { v: MatchResultView; width?: number; height?: number; onHome?: () => void; onRematch?: () => void; rematchWaiting?: string }) {
   const kot = v.reason === 'KOT';
+  const winner = v.reason === 'ENDED' ? null : v.winner;
   const vals = [0, ...v.history.map((r) => r.ledgerAfter)];
   const final = vals[vals.length - 1]!;
   const lo = Math.min(-10, ...vals);
@@ -40,9 +42,10 @@ export function MatchResultScreen({ v, width = 390, height = 844, onHome, onRema
   const pts = vals.map((val, i) => ({ x: Math.round(36 + i * step), y: y(val), team: (val >= 0 ? 'A' : 'B') as Team, end: i === vals.length - 1, label: i === 0 ? 'start' : `R${i}` }));
   const finalTeam: Team = final >= 0 ? 'A' : 'B';
 
-  const conf = Array.from({ length: kot ? 26 : 14 }, (_, i) => ({
+  // An early end has no winner and no confetti.
+  const conf = Array.from({ length: !winner ? 0 : kot ? 26 : 14 }, (_, i) => ({
     x: Math.round(150 + ((i * 61) % 210)), y: Math.round(-10 + ((i * 37) % 20)),
-    w: i % 3 === 0 ? 4 : 6, h: i % 3 === 0 ? 10 : 4, c: CONFETTI[v.winner][i % 5]!,
+    w: i % 3 === 0 ? 4 : 6, h: i % 3 === 0 ? 10 : 4, c: CONFETTI[winner ?? 'A'][i % 5]!,
     dy: Math.round(20 + ((i * 53) % (kot ? 190 : 90))), rt: Math.round((i * 137.5) % 360), d: (i * 45) % 600,
   }));
 
@@ -54,10 +57,14 @@ export function MatchResultScreen({ v, width = 390, height = 844, onHome, onRema
         ))}
       </div>
       <span className="k-label" style={{ position: 'relative' }}>
-        {kot ? `Match over · round ${v.history.length} · instant win` : `Match over · ${v.history.length} rounds`}
+        {kot ? `Match over · round ${v.history.length} · instant win`
+          : !winner ? `Match ended early · ${v.history.length} ${v.history.length === 1 ? 'round' : 'rounds'}`
+          : `Match over · ${v.history.length} rounds`}
       </span>
-      {kot && <div className={`mr-kot ${v.winner}`} role="text">Kot!</div>}
-      <h1 className="mr-h">{v.teamNames[v.winner]}<br />win the match.</h1>
+      {kot && winner && <div className={`mr-kot ${winner}`} role="text">Kot!</div>}
+      {winner
+        ? <h1 className="mr-h">{v.teamNames[winner]}<br />win the match.</h1>
+        : <h1 className="mr-h">Match ended<br />early.</h1>}
       <p className="story">{v.story}</p>
       <div className="mr-fin" aria-label="Final ledger">
         <i className={`swatch ${finalTeam}`} style={{ width: 14, height: 14 }} />

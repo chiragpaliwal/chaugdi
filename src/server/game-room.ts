@@ -41,7 +41,7 @@ export class GameRoom extends Server<Env> {
   private limits = new Map<string, RateLimiter>();
   /** Alarms in the current minute, for the storm breaker (in memory only). */
   private alarms = { since: 0, count: 0 };
-  /** The alarm set in storage; undefined until read after a wake. */
+  /** The alarm this object last set or saw fire; only compared with storage (`arm`). */
   private armedAt: number | null | undefined;
   /** The state last written, to skip writes that change nothing (rows written are billed). */
   private saved: string | null = null;
@@ -221,7 +221,13 @@ export class GameRoom extends Server<Env> {
       log('alarm_storm', { room: this.room?.state.code ?? null, count: this.alarms.count });
       want = Math.max(want, now + STORM_BACKOFF_MS);
     }
-    if (this.armedAt === undefined) this.armedAt = await this.ctx.storage.getAlarm();
+    // Always ask storage (a read, not a billed write): trusting the cached time let a bot
+    // move go unarmed in production until the next sweep, 25 s late. Log any disagreement.
+    const stored = await this.ctx.storage.getAlarm();
+    if (this.armedAt !== undefined && this.armedAt !== stored && !(this.armedAt !== null && this.armedAt <= now && stored === null)) {
+      log('alarm_drift', { room: this.room?.state.code ?? null, cached: this.armedAt, stored, now });
+    }
+    this.armedAt = stored;
     const plan = planAlarm(this.armedAt, want, now);
     // 'none' leaves a past or absent alarm alone: one that already fired is gone.
     if (plan === 'keep' || plan === 'none') return;
